@@ -24,7 +24,7 @@ class User(db.Model, SerializerMixin):
     name = db.Column(db.Text(), nullable=False)
     phone = db.Column(db.Text(), nullable=False, unique=True)
     email = db.Column(db.Text(), nullable=False, unique=True)
-    # password_hash = db.Column(db.Text(), nullable=False)
+    password = db.Column(db.Text(), nullable=False)
     role = db.Column(db.Enum("admin", "agent", "user"), default="user", nullable=False)
     is_verified = db.Column(db.Boolean(), default=False, nullable=False)
     created_at = db.Column(db.DateTime(), server_default=db.func.now())
@@ -135,7 +135,7 @@ class Amenity(db.Model, SerializerMixin):
     __tablename__ = "amenities"
 
     id = db.Column(db.Integer(), primary_key=True)
-    name =db.Column(db.Text())
+    name = db.Column(db.Text())
     created_at = db.Column(db.DateTime(), server_default=db.func.now())
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 

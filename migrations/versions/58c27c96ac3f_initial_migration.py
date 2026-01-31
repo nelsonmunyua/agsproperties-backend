@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: c1029b7b60e8
+Revision ID: 58c27c96ac3f
 Revises: 
-Create Date: 2026-01-12 14:56:09.427364
+Create Date: 2026-01-23 10:57:01.503094
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c1029b7b60e8'
+revision = '58c27c96ac3f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -55,9 +55,11 @@ def upgrade():
     )
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.Text(), nullable=False),
+    sa.Column('first_name', sa.Text(), nullable=False),
+    sa.Column('last_name', sa.Text(), nullable=False),
     sa.Column('phone', sa.Text(), nullable=False),
     sa.Column('email', sa.Text(), nullable=False),
+    sa.Column('password', sa.Text(), nullable=False),
     sa.Column('role', sa.Enum('admin', 'agent', 'user'), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
@@ -66,55 +68,58 @@ def upgrade():
     sa.UniqueConstraint('email', name=op.f('uq_users_email')),
     sa.UniqueConstraint('phone', name=op.f('uq_users_phone'))
     )
-    op.create_table('agents',
+    op.create_table('admin_profiles',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('admin_id', sa.Integer(), nullable=False),
+    sa.Column('profile_picture', sa.String(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('last_login', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('login_ip', sa.Text(), nullable=True),
+    sa.Column('permission', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['admin_id'], ['users.id'], name=op.f('fk_admin_profiles_admin_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_admin_profiles'))
+    )
+    op.create_table('agent_profiles',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('license_number', sa.Text(), nullable=False),
     sa.Column('agency_id', sa.Integer(), nullable=True),
     sa.Column('bio', sa.Text(), nullable=True),
     sa.Column('rating', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['agency_id'], ['agencies.id'], name=op.f('fk_agents_agency_id_agencies')),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_agents_user_id_users')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_agents')),
-    sa.UniqueConstraint('license_number', name=op.f('uq_agents_license_number'))
+    sa.ForeignKeyConstraint(['agency_id'], ['agencies.id'], name=op.f('fk_agent_profiles_agency_id_agencies')),
+    sa.ForeignKeyConstraint(['agent_id'], ['users.id'], name=op.f('fk_agent_profiles_agent_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_agent_profiles')),
+    sa.UniqueConstraint('license_number', name=op.f('uq_agent_profiles_license_number'))
     )
-    op.create_table('owners',
+    op.create_table('user_profiles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('profile_picture', sa.String(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_owners_user_id_users')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_owners'))
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_user_profiles_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_user_profiles'))
     )
     op.create_table('payments',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('amount', sa.Integer(), nullable=True),
     sa.Column('payment_method', sa.Text(), nullable=True),
     sa.Column('status', sa.Enum('pending', 'complete'), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_payments_user_id_users')),
+    sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_payments_agent_id_agent_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_payments'))
-    )
-    op.create_table('subscriptions',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.Column('plan', sa.Text(), nullable=True),
-    sa.Column('expires_at', sa.DateTime(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_subscriptions_user_id_users')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_subscriptions'))
     )
     op.create_table('properties',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.Text(), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('property_type_id', sa.Integer(), nullable=False),
-    sa.Column('owner_id', sa.Integer(), nullable=False),
     sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('price', sa.Integer(), nullable=False),
     sa.Column('currency', sa.Text(), nullable=False),
@@ -128,10 +133,19 @@ def upgrade():
     sa.Column('listing_date', sa.DateTime(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['agent_id'], ['agents.id'], name=op.f('fk_properties_agent_id_agents')),
-    sa.ForeignKeyConstraint(['owner_id'], ['owners.id'], name=op.f('fk_properties_owner_id_owners')),
+    sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_properties_agent_id_agent_profiles')),
     sa.ForeignKeyConstraint(['property_type_id'], ['property_types.id'], name=op.f('fk_properties_property_type_id_property_types')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_properties'))
+    )
+    op.create_table('subscriptions',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('agent_id', sa.Integer(), nullable=True),
+    sa.Column('plan', sa.Text(), nullable=True),
+    sa.Column('expires_at', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_subscriptions_agent_id_agent_profiles')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_subscriptions'))
     )
     op.create_table('favorites',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -140,7 +154,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_favorites_property_id_properties')),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_favorites_user_id_users')),
+    sa.ForeignKeyConstraint(['user_id'], ['user_profiles.id'], name=op.f('fk_favorites_user_id_user_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_favorites'))
     )
     op.create_table('property_amenities',
@@ -200,7 +214,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_views_property_id_properties')),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_views_user_id_users')),
+    sa.ForeignKeyConstraint(['user_id'], ['user_profiles.id'], name=op.f('fk_views_user_id_user_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_views'))
     )
     # ### end Alembic commands ###
@@ -215,11 +229,12 @@ def downgrade():
     op.drop_table('property_images')
     op.drop_table('property_amenities')
     op.drop_table('favorites')
-    op.drop_table('properties')
     op.drop_table('subscriptions')
+    op.drop_table('properties')
     op.drop_table('payments')
-    op.drop_table('owners')
-    op.drop_table('agents')
+    op.drop_table('user_profiles')
+    op.drop_table('agent_profiles')
+    op.drop_table('admin_profiles')
     op.drop_table('users')
     op.drop_table('property_types')
     op.drop_table('locations')

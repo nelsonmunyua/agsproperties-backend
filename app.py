@@ -3,7 +3,7 @@ from flask_migrate import Migrate
 from models import db, User
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
-from resources.user import Signup, Login, UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers
+from resources.user import Signup, Login, UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
@@ -68,6 +68,7 @@ api.add_resource(AdminStatsResource, '/admin/stats')
 api.add_resource(PendingAgentAproval, '/admin/pending-approvals')
 api.add_resource(RecentUsers, '/admin/recent-users')
 
+api.add_resource(PropertyResource, '/properties')
 
 
 

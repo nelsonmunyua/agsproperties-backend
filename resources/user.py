@@ -1,6 +1,6 @@
 from flask_restful import Resource, reqparse
 from flask_bcrypt import check_password_hash, generate_password_hash
-from models import User, Property, Payment, db
+from models import User, Property, Payment, PropertyImage, PropertyLocation, Location, db
 from flask_jwt_extended import  create_access_token, jwt_required  
 from flask_jwt_extended import current_user 
 from utils import admin_required                                                  
@@ -138,8 +138,29 @@ class RecentUsers(Resource):
             for u in users
         ], 200
 
+class PropertyResource(Resource):
+    def get(self):
+        properties = Property.query.all()
 
+        result = []
+        for property in properties:
+            prop_dict = property.to_dict()
+            # Get the primary image for this property
+            primary_image = PropertyImage.query.filter_by(property_id = property.id, is_primary=True).first()
 
-    
+            # Add image URL to the property dict
+            prop_dict['image'] = primary_image.image_url if primary_image else None
+
+            # Add location
+            prop_location = PropertyLocation.query.filter_by(property_id = property.id).first()
+            if prop_location:
+                location = Location.query.get(prop_location.location_id)
+                if location:
+                    prop_dict['location'] = location.neighborhood
+                    prop_dict['city'] = location.city
+
+            result.append(prop_dict)        
+
+        return result, 200
 
 

@@ -173,18 +173,18 @@ class View(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer(), primary_key=True)
     property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=False)
-    user_id = db.Column(db.Integer(), db.ForeignKey("user_profiles.id"), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
     sheduled_time = db.Column(db.DateTime(), nullable=False)
     status = db.Column(db.Enum("completed", "canceled", "pending"))
     created_at = db.Column(db.DateTime(), server_default=db.func.now())
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 
-class Trasanction(db.Model, SerializerMixin):
+class Transaction(db.Model, SerializerMixin):
     __tablename__ = "transactions"
 
     id = db.Column(db.Integer(), primary_key=True)
     property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=False)
-    user_id = db.Column(db.Integer(), primary_key=db.ForeignKey("user_profiles.id"), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
     sale_price = db.Column(db.Text())
     closing_date = db.Column(db.DateTime())   
     transaction_type = db.Column(db.Text())
@@ -218,6 +218,49 @@ class Favorite(db.Model, SerializerMixin):
     id = db.Column(db.Integer(), primary_key=True)
     user_id = db.Column(db.Integer(), db.ForeignKey("user_profiles.id"), nullable=False)
     property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=False)
+    created_at = db.Column(db.DateTime(), server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
+
+
+class Inquiry(db.Model, SerializerMixin):
+    """Model for user inquiries about properties"""
+    __tablename__ = "inquiries"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    agent_id = db.Column(db.Integer(), db.ForeignKey("agent_profiles.id"), nullable=False)
+    property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=False)
+    message = db.Column(db.Text(), nullable=False)
+    status = db.Column(db.Enum("new", "replied", "closed"), default="new", nullable=False)
+    reply = db.Column(db.Text(), nullable=True)
+    created_at = db.Column(db.DateTime(), server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
+
+
+class Review(db.Model, SerializerMixin):
+    """Model for user reviews/ratings of agents"""
+    __tablename__ = "reviews"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    agent_id = db.Column(db.Integer(), db.ForeignKey("agent_profiles.id"), nullable=False)
+    property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=True)
+    rating = db.Column(db.Integer(), nullable=False)  # 1-5 stars
+    comment = db.Column(db.Text(), nullable=True)
+    created_at = db.Column(db.DateTime(), server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
+
+
+class Notification(db.Model, SerializerMixin):
+    """Model for user notifications"""
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    title = db.Column(db.Text(), nullable=False)
+    message = db.Column(db.Text(), nullable=False)
+    notification_type = db.Column(db.Enum("inquiry", "viewing", "property", "system"), default="system")
+    is_read = db.Column(db.Boolean(), default=False, nullable=False)
     created_at = db.Column(db.DateTime(), server_default=db.func.now())
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 

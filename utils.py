@@ -24,3 +24,35 @@ def admin_required():
         return decorator
 
     return wrapper
+
+def agent_required():
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+
+            if claims is None:
+                return {"Message":"Unauthorized request"}, 403
+            if claims["role"] == "agent":
+                return fn(*args, **kwargs)
+            else:
+                return {"Message": "Unauthorized request"}, 403
+        return decorator    
+    return wrapper
+
+def user_required():
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+
+            if claims is None:
+                return {"Message":"Unauthorized request"}, 403
+            if claims["role"] == "user":
+                return fn(*args, **kwargs)
+            else:
+                return {"Message": "Unauthorized request"}, 403
+        return decorator    
+    return wrapper

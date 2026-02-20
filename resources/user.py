@@ -1,166 +1,196 @@
+from flask import request
+from models import db, User, Property, Favorite, UserProfile, Inquiry, View, PropertyImage, PropertyLocation, Location, Property_type, AgentProfile, PropertyVideo
 from flask_restful import Resource, reqparse
-from flask_bcrypt import check_password_hash, generate_password_hash
-from models import User, Property, Payment, PropertyImage, PropertyLocation, Location, db
-from flask_jwt_extended import  create_access_token, jwt_required  
-from flask_jwt_extended import current_user 
-from utils import admin_required                                                  
+from flask_jwt_extended import get_jwt_identity
+from utils import user_required
+from datetime import datetime
 
-
-class Signup(Resource):
-    parser = reqparse.RequestParser()
-    parser.add_argument('first_name', required=True, help='First name is required')
-    parser.add_argument('last_name', required=True, help='Last name is required')
-    parser.add_argument('phone', required=True, help='Phone number is required')
-    parser.add_argument('email', required=True, help='Email is required')
-    parser.add_argument('password', required=True, help='Password is required')
-    parser.add_argument('role', required=True, help="Role is required")
-    
-    def post(self):
-        data = Signup.parser.parse_args()
-          # hash password
-        data['password'] = generate_password_hash(data['password'])
-        # data['role'] = 'user'
-
-        user = User(**data)
-        
-        # verify the uniquness of the email and phone in the db
-        email = User.query.filter_by(email = data['email']).one_or_none()
-
-        if email:
-            return {"message": "Email already taken", "status": "fail"}, 400
-        
-        phone = User.query.filter_by(phone = data['phone']).one_or_none()
-
-        if phone:
-            return {"message": "Phone number already taken", "status": "fail"}, 400
-
-        try:
-            # save user to the db
-            db.session.add(user)
-            db.session.commit()
-
-            user_json = user.to_dict()
-
-
-            access_token = create_access_token(identity=user_json['id'], additional_claims={'role':user_json['role']})
-            
-
-            return {"message": "Account created successfully", "status": "success", "user": user.to_dict(rules=('-password',)), "access_token":access_token}, 201
-        
-        except:
-            return {"message": "Unable to create account", "status": "fail"}, 400
-
-class Login(Resource):
-    parser = reqparse.RequestParser()
-    parser.add_argument('email', required=True, help="Email is required")
-    parser.add_argument('password', required=True, help="Password is required")
-
-    def post(self):
-        data = Login.parser.parse_args()
-
-        # Get user using email
-        user = User.query.filter_by(email = data['email']).first()
-
-        if user:
-        # Check if password provided is correct
-               is_password_correct = user.check_password(data['password'])
-
-               if is_password_correct:
-                   
-                   user_json = user.to_json()
-                   access_token = create_access_token(identity=user_json['id'], additional_claims={'role':user_json['role']})
-                   
-         # Generate a token and return user dict
-                   return {"message" : "Login successful", "status" : "success", "user":user.to_dict(rules=("-password",)), "access_token":access_token}, 200
-               else:
-                   return {"message" : "Invalid email/passwprd", "status": "fail"}, 403
-
-        else:
-            return {"message" : "Invalid email/password", "status" : "fail"}, 403  
-
-class UsersResource(Resource):
-    @admin_required()
+class UserPropertiesResource(Resource):
     def get(self):
-        # if current_user['role'] != "admin":
-        #  return {"message": "Unauthorized request"}, 403
-        users = User.query.all()
-         
-        return [user.to_dict() for user in users], 200
-    
-class AdminStatsResource(Resource):
-    @admin_required()
-    def get(self):
-        total_users = User.query.count()
-        active_agents = User.query.filter_by(role='agent').count()
-        total_properties = Property.query.count()
-        total_revenue = db.session.query(db.func.sum(Payment.amount)).scalar() or 0
-
-        return {
-            "total_users": total_users,
-            "active_agents": active_agents,
-            "total_properties": total_properties,
-            "total_revenue": total_revenue
-        }, 200  
-
-class PendingAgentAproval(Resource):
-    @admin_required()
-    def get(self):
-        agents = User.query.filter_by(role='agent', is_verified=True).all()
-
-        return [
-            {
-                "name": f"{a.first_name} {a.last_name}",
-                "email": a.email,
-                "phone": a.phone,
-                "date": a.created_at.strftime("%b %d, %Y")
-            }
-            for a in agents
-        ], 200
-    
-class RecentUsers(Resource):
-    @admin_required()
-    def get(self):
-        users = (
-            User.query
-            .order_by(User.created_at.desc())
-            .limit(10)
-            .all()
-        )
-
-        return [
-            {
-                "name": f"{u.first_name} {u.last_name}",
-                "email": u.email,
-                "role": u.role.capitalize(),
-                "date": u.created_at.strftime("%b %d, %Y"),
-                "status": "active" if u.is_verified else "inactive"
-            }
-            for u in users
-        ], 200
-
-class PropertyResource(Resource):
-    def get(self):
+        """Get all properties for user browsing with primary image and location"""
         properties = Property.query.all()
 
         result = []
-        for property in properties:
-            prop_dict = property.to_dict()
-            # Get the primary image for this property
-            primary_image = PropertyImage.query.filter_by(property_id = property.id, is_primary=True).first()
-
-            # Add image URL to the property dict
-            prop_dict['image'] = primary_image.image_url if primary_image else None
-
-            # Add location
-            prop_location = PropertyLocation.query.filter_by(property_id = property.id).first()
+        for prop in properties:
+            prop_dict = prop.to_dict()
+            
+            # Get primary image
+            primary_image = PropertyImage.query.filter_by(property_id=prop.id, is_primary=True).first()
+            prop_dict['primary_image'] = primary_image.image_url if primary_image else None
+            
+            # Get location
+            prop_location = PropertyLocation.query.filter_by(property_id=prop.id).first()
             if prop_location:
                 location = Location.query.get(prop_location.location_id)
                 if location:
-                    prop_dict['location'] = location.neighborhood
-                    prop_dict['city'] = location.city
-
-            result.append(prop_dict)        
+                    prop_dict['location'] = location.neighborhood or location.city or f"{location.city}, {location.state}"
+            
+            # Get property type name for category filtering
+            property_type = Property_type.query.get(prop.property_type_id)
+            if property_type:
+                prop_dict['property_type'] = property_type.name
+            
+            result.append(prop_dict)
 
         return result, 200
 
+
+class UserPropertyDetailResource(Resource):
+    def get(self, property_id):
+        """Get single property with full details including agent info"""
+        prop = Property.query.get(property_id)
+        
+        if not prop:
+            return {"message": "Property not found"}, 404
+        
+        prop_dict = prop.to_dict()
+        
+        # Get primary image
+        primary_image = PropertyImage.query.filter_by(property_id=prop.id, is_primary=True).first()
+        prop_dict['primary_image'] = primary_image.image_url if primary_image else None
+        
+        # Get all images
+        all_images = PropertyImage.query.filter_by(property_id=prop.id).all()
+        prop_dict['images'] = [img.image_url for img in all_images]
+        
+        # Get all videos
+        all_videos = PropertyVideo.query.filter_by(propert_id=prop.id).all()
+        prop_dict['videos'] = [video.video_url for video in all_videos]
+        
+        # Get location details
+        prop_location = PropertyLocation.query.filter_by(property_id=prop.id).first()
+        if prop_location:
+            location = Location.query.get(prop_location.location_id)
+            if location:
+                prop_dict['location'] = {
+                    'neighborhood': location.neighborhood,
+                    'city': location.city,
+                    'state': location.state,
+                    'country': location.country,
+                    'latitude': location.latitude,
+                    'longitude': location.longitude
+                }
+        
+        # Get property type
+        property_type = Property_type.query.get(prop.property_type_id)
+        if property_type:
+            prop_dict['property_type'] = property_type.name
+        
+        # Get agent info
+        agent_profile = AgentProfile.query.get(prop.agent_id)
+        if agent_profile:
+            agent_user = User.query.get(agent_profile.agent_id)
+            if agent_user:
+                prop_dict['agent'] = {
+                    'id': agent_user.id,
+                    'name': f"{agent_user.first_name} {agent_user.last_name}",
+                    'email': agent_user.email,
+                    'phone': agent_user.phone,
+                    'bio': agent_profile.bio,
+                    'rating': agent_profile.rating,
+                    'license_number': agent_profile.license_number
+                }
+        
+        return prop_dict, 200
+
+class UserStatsResource(Resource):
+    @user_required()
+    def get(self):
+        # Get the current user's ID from JWT
+        current_user_id = get_jwt_identity()
+        
+        # Get the user's profile to find favorites
+        user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
+        
+        # Count saved properties (favorites)
+        saved_count = 0
+        if user_profile:
+            saved_count = Favorite.query.filter_by(user_id=user_profile.id).count()
+        
+        # Count inquiries sent by this user
+        inquiries_count = Inquiry.query.filter_by(user_id=current_user_id).count()
+        
+        # Count scheduled visits (views)
+        visits_count = View.query.filter_by(user_id=current_user_id).count()
+        
+        return {
+            "saved": saved_count,
+            "inquiries": inquiries_count,
+            "visits": visits_count
+        }, 200
+
+class SavedPropertiesResource(Resource):
+    @user_required()
+    def get(self):
+        current_user_id = get_jwt_identity()
+
+        # Get user's profile
+        user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
+
+        if not user_profile:
+            return {"properties": []}, 200
+
+        #Get all favorite for this user
+        favorites = Favorite.query.filter_by(user_id=user_profile.id).all()
+
+        properties = []
+        for fav in favorites:
+            property = Property.query.get(fav.property_id)  
+            if property:
+                properties.append(property.to_dict())
+
+        return {"properties": properties}, 200   
+
+# Get recent activities
+
+class RecentActivitiesResource(Resource):
+    @user_required()
+    def get(self):
+        current_user = get_jwt_identity()
+
+        #Get user profile
+        user_profile = UserProfile.query.filter_by(user_id=current_user).first()
+        if not user_profile:
+            return {"activities": []}, 200
+        
+        activities = []
+      
+       # Get recent property views
+        views = View.query.filter_by(user_id=current_user).order_by(View.created_at.desc()).limit(5).all()
+        for view in views:
+            property = Property.query.get(View.property_id)
+            activities.append({
+                "type": "view",
+                "description": f"Viewed {property.title if property else 'a property'}",
+                "property": property.title if property else None,
+                "time": view.created_at.strftime("%Y-%m-%d %H:%M")
+            })    
+
+
+        # Get recent inquiries
+        inquiries = Inquiry.query.filter_by(user_id=current_user).order_by(Inquiry.created_at.desc()).limit(5).all()
+        for inquiry in inquiries:
+            property = Property.query.get(Inquiry.property_id)
+            activities.append({
+                "type": "inquiry",
+                "description": inquiry.message[:50] + "..." if len(inquiry.message) > 50 else inquiry.message,
+                "property": property.title if property else None,
+                "time": inquiry.created_at.strftime("%Y-%m-%d %H:%M")
+            })             
+        #Get scheduled viewings (pending visits)
+        scheduled = View.query.filter_by(user_id = current_user, status="pending").order_by(View.sheduled_time.desc()).limit(5).all()
+        for view in scheduled:
+            property = Property.query.get(view.property_id)
+            activities.append({
+                "type": "scheduled",
+                "description": f"Scheduled viewing for {view.sheduled_time.strftime('%Y-%m-%d %H:%M')}",
+                "property": property.title if property else None,
+                "time": view.created_at.strftime("%Y-%m-%d %H:%M")
+            })
+
+            # Sort by time (most recent first)
+            activities.sort(Key=lambda x: x["time"], reverse=True)
+            # Return only the 10 most recent 
+            return {"activities": activities[:10]},
+            
 

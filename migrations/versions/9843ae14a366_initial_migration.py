@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: 58c27c96ac3f
+Revision ID: 9843ae14a366
 Revises: 
-Create Date: 2026-01-23 10:57:01.503094
+Create Date: 2026-02-17 16:34:02.411229
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '58c27c96ac3f'
+revision = '9843ae14a366'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -95,6 +95,18 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_agent_profiles')),
     sa.UniqueConstraint('license_number', name=op.f('uq_agent_profiles_license_number'))
     )
+    op.create_table('notifications',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('title', sa.Text(), nullable=False),
+    sa.Column('message', sa.Text(), nullable=False),
+    sa.Column('notification_type', sa.Enum('inquiry', 'viewing', 'property', 'system'), nullable=True),
+    sa.Column('is_read', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_notifications_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notifications'))
+    )
     op.create_table('user_profiles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -157,6 +169,21 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['user_profiles.id'], name=op.f('fk_favorites_user_id_user_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_favorites'))
     )
+    op.create_table('inquiries',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('agent_id', sa.Integer(), nullable=False),
+    sa.Column('property_id', sa.Integer(), nullable=False),
+    sa.Column('message', sa.Text(), nullable=False),
+    sa.Column('status', sa.Enum('new', 'replied', 'closed'), nullable=False),
+    sa.Column('reply', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_inquiries_agent_id_agent_profiles')),
+    sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_inquiries_property_id_properties')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_inquiries_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_inquiries'))
+    )
     op.create_table('property_amenities',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=False),
@@ -193,6 +220,20 @@ def upgrade():
     sa.ForeignKeyConstraint(['propert_id'], ['properties.id'], name=op.f('fk_property_videos_propert_id_properties')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_property_videos'))
     )
+    op.create_table('reviews',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('agent_id', sa.Integer(), nullable=False),
+    sa.Column('property_id', sa.Integer(), nullable=True),
+    sa.Column('rating', sa.Integer(), nullable=False),
+    sa.Column('comment', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_reviews_agent_id_agent_profiles')),
+    sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_reviews_property_id_properties')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_reviews_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_reviews'))
+    )
     op.create_table('transactions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=False),
@@ -203,7 +244,8 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_transactions_property_id_properties')),
-    sa.PrimaryKeyConstraint('id', 'user_id', name=op.f('pk_transactions'))
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_transactions_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_transactions'))
     )
     op.create_table('views',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -214,7 +256,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_views_property_id_properties')),
-    sa.ForeignKeyConstraint(['user_id'], ['user_profiles.id'], name=op.f('fk_views_user_id_user_profiles')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_views_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_views'))
     )
     # ### end Alembic commands ###
@@ -224,15 +266,18 @@ def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('views')
     op.drop_table('transactions')
+    op.drop_table('reviews')
     op.drop_table('property_videos')
     op.drop_table('property_locations')
     op.drop_table('property_images')
     op.drop_table('property_amenities')
+    op.drop_table('inquiries')
     op.drop_table('favorites')
     op.drop_table('subscriptions')
     op.drop_table('properties')
     op.drop_table('payments')
     op.drop_table('user_profiles')
+    op.drop_table('notifications')
     op.drop_table('agent_profiles')
     op.drop_table('admin_profiles')
     op.drop_table('users')

@@ -3,7 +3,9 @@ from flask_migrate import Migrate
 from models import db, User
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
-from resources.user import Signup, Login, UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource
+from resources.auth import Signup, Login
+from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
+from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
@@ -66,9 +68,18 @@ api.add_resource(Login, '/login')
 api.add_resource(UsersResource, '/users')
 api.add_resource(AdminStatsResource, '/admin/stats')
 api.add_resource(PendingAgentAproval, '/admin/pending-approvals')
+api.add_resource(AgentApproval, '/admin/approve/<int:user_id>')
 api.add_resource(RecentUsers, '/admin/recent-users')
 
 api.add_resource(PropertyResource, '/properties')
+
+# user routes
+api.add_resource(UserStatsResource, '/user/stats')
+api.add_resource(SavedPropertiesResource, '/user/saved-properties')
+api.add_resource(RecentActivitiesResource, '/user/recent-activity')
+api.add_resource(UserPropertiesResource, '/user/properties')
+api.add_resource(UserPropertyDetailResource, '/user/properties/<int:property_id>')
+
 
 
 

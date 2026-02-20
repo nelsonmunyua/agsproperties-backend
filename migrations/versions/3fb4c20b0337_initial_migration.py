@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: 9843ae14a366
+Revision ID: 3fb4c20b0337
 Revises: 
-Create Date: 2026-02-17 16:34:02.411229
+Create Date: 2026-02-20 12:43:22.470736
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9843ae14a366'
+revision = '3fb4c20b0337'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -252,7 +252,7 @@ def upgrade():
     sa.Column('property_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('sheduled_time', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.Enum('completed', 'canceled', 'pending'), nullable=True),
+    sa.Column('status', sa.Enum('completed', 'canceled', 'pending', 'viewed'), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_views_property_id_properties')),

@@ -175,7 +175,7 @@ class View(db.Model, SerializerMixin):
     property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=False)
     user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
     sheduled_time = db.Column(db.DateTime(), nullable=False)
-    status = db.Column(db.Enum("completed", "canceled", "pending"))
+    status = db.Column(db.Enum("completed", "canceled", "pending", "viewed"))
     created_at = db.Column(db.DateTime(), server_default=db.func.now())
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 

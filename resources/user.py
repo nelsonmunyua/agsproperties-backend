@@ -111,7 +111,7 @@ class UserStatsResource(Resource):
         inquiries_count = Inquiry.query.filter_by(user_id=current_user_id).count()
         
         # Count scheduled visits (views)
-        visits_count = View.query.filter_by(user_id=current_user_id).count()
+        visits_count = View.query.filter_by(user_id=current_user_id, status="pending").count()
         
         return {
             "saved": saved_count,
@@ -123,6 +123,9 @@ class SavedPropertiesResource(Resource):
     @user_required()
     def get(self):
         current_user_id = get_jwt_identity()
+        
+        # Get optional limit parameter (default to 4 for home page, 0 for all)
+        limit = request.args.get('limit', type=int, default=0)
 
         # Get user's profile
         user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
@@ -130,8 +133,14 @@ class SavedPropertiesResource(Resource):
         if not user_profile:
             return {"properties": []}, 200
 
-        #Get all favorite for this user
-        favorites = Favorite.query.filter_by(user_id=user_profile.id).all()
+        # Get all favorites for this user
+        favorites_query = Favorite.query.filter_by(user_id=user_profile.id)
+        
+        # Apply limit if specified
+        if limit > 0:
+            favorites = favorites_query.limit(limit).all()
+        else:
+            favorites = favorites_query.all()
 
         properties = []
         for fav in favorites:
@@ -139,7 +148,7 @@ class SavedPropertiesResource(Resource):
             if property:
                 properties.append(property.to_dict())
 
-        return {"properties": properties}, 200   
+        return {"properties": properties}, 200
 
 
 class ToggleFavoriteResource(Resource):
@@ -187,12 +196,13 @@ class ToggleFavoriteResource(Resource):
             db.session.commit()
             return {"message": "Added to favorites", "is_favorited": True}, 200
 
-# Get recent activities
-
 class RecentActivitiesResource(Resource):
     @user_required()
     def get(self):
         current_user = get_jwt_identity()
+        
+        # Get optional limit parameter (default to 8 for home page, 0 for all)
+        limit = request.args.get('limit', type=int, default=0)
 
         #Get user profile
         user_profile = UserProfile.query.filter_by(user_id=current_user).first()
@@ -201,42 +211,104 @@ class RecentActivitiesResource(Resource):
         
         activities = []
       
-       # Get recent property views
-        views = View.query.filter_by(user_id=current_user).order_by(View.created_at.desc()).limit(5).all()
+        # Get recent property views (viewing/visiting a property)
+        views_query = View.query.filter_by(user_id=current_user).order_by(View.created_at.desc())
+        if limit > 0:
+            views = views_query.limit(limit).all()
+        else:
+            views = views_query.all()
+            
         for view in views:
-            property = Property.query.get(View.property_id)
-            activities.append({
-                "type": "view",
-                "description": f"Viewed {property.title if property else 'a property'}",
-                "property": property.title if property else None,
-                "time": view.created_at.strftime("%Y-%m-%d %H:%M")
-            })    
-
+            property = Property.query.get(view.property_id)
+            if property:
+                # Check the status to determine the type of view
+                if view.status == "viewed":
+                    # Pure property view - recorded when user visits property details
+                    activities.append({
+                        "type": "view",
+                        "description": f"Viewed {property.title}",
+                        "property": property.title,
+                        "time": view.created_at.strftime("%Y-%m-%d %H:%M")
+                    })
+                elif view.status == "pending" or view.status == "completed":
+                    # Scheduled viewing
+                    activities.append({
+                        "type": "viewing",
+                        "description": f"Scheduled viewing for {view.sheduled_time.strftime('%Y-%m-%d %H:%M')}" if view.sheduled_time else "Property viewing",
+                        "property": property.title,
+                        "status": view.status,
+                        "time": view.created_at.strftime("%Y-%m-%d %H:%M")
+                    })
 
         # Get recent inquiries
-        inquiries = Inquiry.query.filter_by(user_id=current_user).order_by(Inquiry.created_at.desc()).limit(5).all()
+        inquiries_query = Inquiry.query.filter_by(user_id=current_user).order_by(Inquiry.created_at.desc())
+        if limit > 0:
+            inquiries = inquiries_query.limit(limit).all()
+        else:
+            inquiries = inquiries_query.all()
+            
         for inquiry in inquiries:
-            property = Property.query.get(Inquiry.property_id)
-            activities.append({
-                "type": "inquiry",
-                "description": inquiry.message[:50] + "..." if len(inquiry.message) > 50 else inquiry.message,
-                "property": property.title if property else None,
-                "time": inquiry.created_at.strftime("%Y-%m-%d %H:%M")
-            })             
-        #Get scheduled viewings (pending visits)
-        scheduled = View.query.filter_by(user_id = current_user, status="pending").order_by(View.sheduled_time.desc()).limit(5).all()
-        for view in scheduled:
-            property = Property.query.get(view.property_id)
-            activities.append({
-                "type": "scheduled",
-                "description": f"Scheduled viewing for {view.sheduled_time.strftime('%Y-%m-%d %H:%M')}",
-                "property": property.title if property else None,
-                "time": view.created_at.strftime("%Y-%m-%d %H:%M")
-            })
+            property = Property.query.get(inquiry.property_id)
+            if property:
+                activities.append({
+                    "type": "inquiry",
+                    "description": inquiry.message[:50] + "..." if len(inquiry.message) > 50 else inquiry.message,
+                    "property": property.title,
+                    "time": inquiry.created_at.strftime("%Y-%m-%d %H:%M")
+                })
 
-            # Sort by time (most recent first)
-            activities.sort(Key=lambda x: x["time"], reverse=True)
-            # Return only the 10 most recent 
-            return {"activities": activities[:10]},
+        # Sort by time (most recent first)
+        activities.sort(key=lambda x: x["time"], reverse=True)
+        # Return only the limited number of most recent 
+        if limit > 0:
+            return {"activities": activities[:limit]}, 200
+        return {"activities": activities}, 200
+
+
+class RecordPropertyViewResource(Resource):
+    @user_required()
+    def post(self):
+        """Record when a user views a property"""
+        current_user_id = get_jwt_identity()
+        
+        # Get property_id from request
+        data = request.get_json()
+        property_id = data.get('property_id')
+        
+        if not property_id:
+            return {"message": "Property ID is required"}, 400
+        
+        # Check if property exists
+        property = Property.query.get(property_id)
+        if not property:
+            return {"message": "Property not found"}, 404
+        
+        # Check if user has already viewed this property recently (within last 24 hours)
+        # to avoid duplicate entries
+        from datetime import timedelta
+        recent_view = View.query.filter(
+            View.user_id == current_user_id,
+            View.property_id == property_id,
+            View.status == "viewed",
+            View.created_at >= datetime.now() - timedelta(hours=24)
+        ).first()
+        
+        if recent_view:
+            # Update the existing view timestamp instead of creating a new one
+            recent_view.created_at = datetime.now()
+            db.session.commit()
+            return {"message": "View timestamp updated"}, 200
+        
+        # Record the view (status None means it's just a view, not a scheduled viewing)
+        new_view = View(
+            property_id=property_id,
+            user_id=current_user_id,
+            sheduled_time=datetime.now(),  # Using current time as the view time
+            status="viewed"  # Custom status for property views
+        )
+        db.session.add(new_view)
+        db.session.commit()
+        
+        return {"message": "View recorded"}, 200
             
 

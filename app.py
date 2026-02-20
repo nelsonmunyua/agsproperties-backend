@@ -5,7 +5,7 @@ from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
-from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource
+from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
@@ -80,6 +80,7 @@ api.add_resource(RecentActivitiesResource, '/user/recent-activity')
 api.add_resource(UserPropertiesResource, '/user/properties')
 api.add_resource(UserPropertyDetailResource, '/user/properties/<int:property_id>')
 api.add_resource(ToggleFavoriteResource, '/user/favorite')
+api.add_resource(RecordPropertyViewResource, '/user/record-view')
 
 
 

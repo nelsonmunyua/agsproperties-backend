@@ -141,6 +141,52 @@ class SavedPropertiesResource(Resource):
 
         return {"properties": properties}, 200   
 
+
+class ToggleFavoriteResource(Resource):
+    @user_required()
+    def post(self):
+        """Toggle favorite status for a property"""
+        current_user_id = get_jwt_identity()
+        
+        # Get user's profile
+        user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
+        
+        if not user_profile:
+            return {"message": "User profile not found"}, 404
+        
+        # Get property_id from request
+        data = request.get_json()
+        property_id = data.get('property_id')
+        
+        if not property_id:
+            return {"message": "Property ID is required"}, 400
+        
+        # Check if property exists
+        property = Property.query.get(property_id)
+        if not property:
+            return {"message": "Property not found"}, 404
+        
+        # Check if already favorited
+        existing_favorite = Favorite.query.filter_by(
+            user_id=user_profile.id,
+            property_id=property_id
+        ).first()
+        
+        if existing_favorite:
+            # Remove from favorites
+            db.session.delete(existing_favorite)
+            db.session.commit()
+            return {"message": "Removed from favorites", "is_favorited": False}, 200
+        else:
+            # Add to favorites
+            new_favorite = Favorite(
+                user_id=user_profile.id,
+                property_id=property_id
+            )
+            db.session.add(new_favorite)
+            db.session.commit()
+            return {"message": "Added to favorites", "is_favorited": True}, 200
+
 # Get recent activities
 
 class RecentActivitiesResource(Resource):

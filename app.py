@@ -5,7 +5,7 @@ from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
-from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
+from resources.user import UserProfileResource, UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
@@ -74,6 +74,7 @@ api.add_resource(RecentUsers, '/admin/recent-users')
 api.add_resource(PropertyResource, '/properties')
 
 # user routes
+api.add_resource(UserProfileResource, '/user/profile')
 api.add_resource(UserStatsResource, '/user/stats')
 api.add_resource(SavedPropertiesResource, '/user/saved-properties')
 api.add_resource(RecentActivitiesResource, '/user/recent-activity')

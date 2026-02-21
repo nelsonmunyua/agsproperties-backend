@@ -5,6 +5,85 @@ from flask_jwt_extended import get_jwt_identity
 from utils import user_required
 from datetime import datetime
 
+
+class UserProfileResource(Resource):
+    @user_required()
+    def get(self):
+        """Get current user's profile"""
+        current_user_id = get_jwt_identity()
+        
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return {"message": "User not found"}, 404
+        
+        user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
+        
+        profile_data = {
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'phone': user.phone,
+            'role': user.role,
+            'is_verified': user.is_verified,
+            'profile_picture': user_profile.profile_picture if user_profile else None,
+            'created_at': user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
+            'updated_at': user.updated_at.strftime("%Y-%m-%d %H:%M") if user.updated_at else None
+        }
+        
+        return profile_data, 200
+    
+    @user_required()
+    def put(self):
+        """Update current user's profile"""
+        current_user_id = get_jwt_identity()
+        
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return {"message": "User not found"}, 404
+        
+        data = request.get_json()
+        
+        if 'first_name' in data and data['first_name']:
+            user.first_name = data['first_name']
+        if 'last_name' in data and data['last_name']:
+            user.last_name = data['last_name']
+        if 'phone' in data and data['phone']:
+            existing_phone = User.query.filter(User.phone == data['phone'], User.id != current_user_id).first()
+            if existing_phone:
+                return {"message": "Phone number already taken"}, 400
+            user.phone = data['phone']
+        
+        user_profile = UserProfile.query.filter_by(user_id=current_user_id).first()
+        
+        if not user_profile:
+            user_profile = UserProfile(user_id=current_user_id)
+            db.session.add(user_profile)
+        
+        if 'profile_picture' in data:
+            user_profile.profile_picture = data['profile_picture']
+        
+        db.session.commit()
+        
+        return {
+            'message': 'Profile updated successfully',
+            'profile': {
+                'id': user.id,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'phone': user.phone,
+                'role': user.role,
+                'is_verified': user.is_verified,
+                'profile_picture': user_profile.profile_picture,
+                'created_at': user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
+                'updated_at': user.updated_at.strftime("%Y-%m-%d %H:%M") if user.updated_at else None
+            }
+        }, 200
+
+
 class UserPropertiesResource(Resource):
     def get(self):
         """Get all properties for user browsing with primary image and location"""

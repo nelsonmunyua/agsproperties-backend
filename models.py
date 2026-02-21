@@ -237,6 +237,33 @@ class Inquiry(db.Model, SerializerMixin):
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 
 
+class Conversation(db.Model, SerializerMixin):
+    """Model for real-time messaging conversations"""
+    __tablename__ = "conversations"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    agent_id = db.Column(db.Integer(), db.ForeignKey("agent_profiles.id"), nullable=False)
+    property_id = db.Column(db.Integer(), db.ForeignKey("properties.id"), nullable=True)
+    last_message = db.Column(db.Text(), nullable=True)
+    last_message_at = db.Column(db.DateTime(), server_default=db.func.now())
+    created_at = db.Column(db.DateTime(), server_default=db.func.now())
+    updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
+
+
+class Message(db.Model, SerializerMixin):
+    """Model for individual messages in a conversation"""
+    __tablename__ = "messages"
+
+    id = db.Column(db.Integer(), primary_key=True)
+    conversation_id = db.Column(db.Integer(), db.ForeignKey("conversations.id"), nullable=False)
+    sender_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    sender_type = db.Column(db.Enum("user", "agent"), nullable=False)
+    content = db.Column(db.Text(), nullable=False)
+    is_read = db.Column(db.Boolean(), default=False, nullable=False)
+    created_at = db.Column(db.DateTime(), server_default=db.func.now())
+
+
 class Review(db.Model, SerializerMixin):
     """Model for user reviews/ratings of agents"""
     __tablename__ = "reviews"

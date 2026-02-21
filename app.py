@@ -5,7 +5,7 @@ from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
-from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource
+from resources.user import UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 
@@ -82,12 +82,18 @@ api.add_resource(UserPropertyDetailResource, '/user/properties/<int:property_id>
 api.add_resource(ToggleFavoriteResource, '/user/favorite')
 api.add_resource(RecordPropertyViewResource, '/user/record-view')
 
+# Inquiry routes
+api.add_resource(CreateInquiryResource, '/user/inquiry')
+api.add_resource(UserInquiriesResource, '/user/inquiries')
 
+# Messaging routes
+api.add_resource(StartConversationResource, '/user/conversation/start')
+api.add_resource(UserConversationsResource, '/user/conversations')
+api.add_resource(ConversationMessagesResource, '/user/conversations/<int:conversation_id>')
 
-
-
-
-
+# Visit scheduling routes
+api.add_resource(ScheduleVisitResource, '/user/schedule-visit')
+api.add_resource(UserScheduledVisitsResource, '/user/scheduled-visits')
 
 
 if __name__ == '__main__':

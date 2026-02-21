@@ -1,5 +1,5 @@
 from flask import request
-from models import db, User, Property, Favorite, UserProfile, Inquiry, View, PropertyImage, PropertyLocation, Location, Property_type, AgentProfile, PropertyVideo
+from models import db, User, Property, Favorite, UserProfile, Inquiry, View, PropertyImage, PropertyLocation, Location, Property_type, AgentProfile, PropertyVideo, Conversation, Message
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import get_jwt_identity
 from utils import user_required
@@ -310,5 +310,440 @@ class RecordPropertyViewResource(Resource):
         db.session.commit()
         
         return {"message": "View recorded"}, 200
+
+
+class CreateInquiryResource(Resource):
+    @user_required()
+    def post(self):
+        """Create a new inquiry about a property"""
+        current_user_id = get_jwt_identity()
+        
+        # Get data from request
+        data = request.get_json()
+        property_id = data.get('property_id')
+        message = data.get('message')
+        
+        if not property_id:
+            return {"message": "Property ID is required"}, 400
+        
+        if not message:
+            return {"message": "Message is required"}, 400
+        
+        # Check if property exists
+        property = Property.query.get(property_id)
+        if not property:
+            return {"message": "Property not found"}, 404
+        
+        # Get the agent who listed the property
+        agent_profile = AgentProfile.query.get(property.agent_id)
+        if not agent_profile:
+            return {"message": "Agent not found for this property"}, 404
+        
+        # Create the inquiry
+        new_inquiry = Inquiry(
+            user_id=current_user_id,
+            agent_id=agent_profile.id,
+            property_id=property_id,
+            message=message,
+            status="new"
+        )
+        db.session.add(new_inquiry)
+        db.session.commit()
+        
+        return {
+            "message": "Inquiry sent successfully",
+            "inquiry": new_inquiry.to_dict()
+        }, 201
+
+
+class UserInquiriesResource(Resource):
+    @user_required()
+    def get(self):
+        """Get all inquiries sent by the current user"""
+        current_user_id = get_jwt_identity()
+        
+        # Get optional limit parameter
+        limit = request.args.get('limit', type=int, default=0)
+        
+        # Get all inquiries for this user, ordered by most recent
+        inquiries_query = Inquiry.query.filter_by(user_id=current_user_id).order_by(Inquiry.created_at.desc())
+        
+        if limit > 0:
+            inquiries = inquiries_query.limit(limit).all()
+        else:
+            inquiries = inquiries_query.all()
+        
+        result = []
+        for inquiry in inquiries:
+            inquiry_dict = inquiry.to_dict()
+            
+            # Get property info
+            property = Property.query.get(inquiry.property_id)
+            if property:
+                inquiry_dict['property'] = {
+                    'id': property.id,
+                    'title': property.title,
+                    'price': property.price,
+                    'currency': property.currency
+                }
+                # Get primary image
+                primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                if primary_image:
+                    inquiry_dict['property']['image'] = primary_image.image_url
+            
+            # Get agent info
+            agent_profile = AgentProfile.query.get(inquiry.agent_id)
+            if agent_profile:
+                agent_user = User.query.get(agent_profile.agent_id)
+                if agent_user:
+                    inquiry_dict['agent'] = {
+                        'id': agent_user.id,
+                        'name': f"{agent_user.first_name} {agent_user.last_name}",
+                        'email': agent_user.email,
+                        'phone': agent_user.phone
+                    }
+            
+            result.append(inquiry_dict)
+        
+        return {"inquiries": result}, 200
+
+
+# ==================== MESSAGING RESOURCES ====================
+
+class UserConversationsResource(Resource):
+    @user_required()
+    def get(self):
+        """Get all conversations for the current user"""
+        current_user_id = get_jwt_identity()
+        
+        # Get all conversations for this user, ordered by most recent
+        conversations = Conversation.query.filter_by(
+            user_id=current_user_id
+        ).order_by(Conversation.last_message_at.desc()).all()
+        
+        result = []
+        for conv in conversations:
+            conv_dict = {
+                'id': conv.id,
+                'last_message': conv.last_message,
+                'last_message_at': conv.last_message_at.strftime("%Y-%m-%d %H:%M") if conv.last_message_at else None,
+                'created_at': conv.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Get agent info
+            agent_profile = AgentProfile.query.get(conv.agent_id)
+            if agent_profile:
+                agent_user = User.query.get(agent_profile.agent_id)
+                if agent_user:
+                    conv_dict['agent'] = {
+                        'id': agent_user.id,
+                        'name': f"{agent_user.first_name} {agent_user.last_name}",
+                        'email': agent_user.email,
+                        'phone': agent_user.phone
+                    }
+            
+            # Get property info if exists
+            if conv.property_id:
+                property = Property.query.get(conv.property_id)
+                if property:
+                    conv_dict['property'] = {
+                        'id': property.id,
+                        'title': property.title,
+                        'price': property.price,
+                        'currency': property.currency
+                    }
+                    # Get primary image
+                    primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                    if primary_image:
+                        conv_dict['property']['image'] = primary_image.image_url
+            
+            # Get unread message count
+            unread_count = Message.query.filter(
+                Message.conversation_id == conv.id,
+                Message.sender_type == "agent",
+                Message.is_read == False
+            ).count()
+            conv_dict['unread_count'] = unread_count
+            
+            result.append(conv_dict)
+        
+        return {"conversations": result}, 200
+
+
+class ConversationMessagesResource(Resource):
+    @user_required()
+    def get(self, conversation_id):
+        """Get all messages in a conversation"""
+        current_user_id = get_jwt_identity()
+        
+        # Verify the conversation belongs to this user
+        conversation = Conversation.query.filter_by(
+            id=conversation_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not conversation:
+            return {"message": "Conversation not found"}, 404
+        
+        # Get all messages in this conversation
+        messages = Message.query.filter_by(
+            conversation_id=conversation_id
+        ).order_by(Message.created_at.asc()).all()
+        
+        # Mark messages as read
+        for msg in messages:
+            if msg.sender_type == "agent" and not msg.is_read:
+                msg.is_read = True
+        db.session.commit()
+        
+        result = []
+        for msg in messages:
+            msg_dict = {
+                'id': msg.id,
+                'content': msg.content,
+                'sender_type': msg.sender_type,
+                'is_read': msg.is_read,
+                'created_at': msg.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Get sender info
+            sender = User.query.get(msg.sender_id)
+            if sender:
+                msg_dict['sender'] = {
+                    'id': sender.id,
+                    'name': f"{sender.first_name} {sender.last_name}"
+                }
+            
+            result.append(msg_dict)
+        
+        return {"messages": result}, 200
+    
+    @user_required()
+    def post(self, conversation_id):
+        """Send a message in a conversation"""
+        current_user_id = get_jwt_identity()
+        
+        # Verify the conversation belongs to this user
+        conversation = Conversation.query.filter_by(
+            id=conversation_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not conversation:
+            return {"message": "Conversation not found"}, 404
+        
+        data = request.get_json()
+        content = data.get('content')
+        
+        if not content:
+            return {"message": "Message content is required"}, 400
+        
+        # Create the message
+        new_message = Message(
+            conversation_id=conversation_id,
+            sender_id=current_user_id,
+            sender_type="user",
+            content=content,
+            is_read=False
+        )
+        db.session.add(new_message)
+        
+        # Update conversation's last message
+        conversation.last_message = content
+        conversation.last_message_at = datetime.now()
+        
+        db.session.commit()
+        
+        return {
+            "message": "Message sent successfully",
+            "msg": {
+                'id': new_message.id,
+                'content': new_message.content,
+                'sender_type': new_message.sender_type,
+                'created_at': new_message.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+        }, 201
+
+
+class StartConversationResource(Resource):
+    @user_required()
+    def post(self):
+        """Start a new conversation with an agent"""
+        current_user_id = get_jwt_identity()
+        
+        data = request.get_json()
+        agent_id = data.get('agent_id')
+        property_id = data.get('property_id')
+        initial_message = data.get('message')
+        
+        if not agent_id:
+            return {"message": "Agent ID is required"}, 400
+        
+        if not initial_message:
+            return {"message": "Initial message is required"}, 400
+        
+        # Check if conversation already exists
+        existing_conv = Conversation.query.filter_by(
+            user_id=current_user_id,
+            agent_id=agent_id,
+            property_id=property_id
+        ).first()
+        
+        if existing_conv:
+            # Add message to existing conversation
+            new_message = Message(
+                conversation_id=existing_conv.id,
+                sender_id=current_user_id,
+                sender_type="user",
+                content=initial_message,
+                is_read=False
+            )
+            db.session.add(new_message)
+            existing_conv.last_message = initial_message
+            existing_conv.last_message_at = datetime.now()
+            db.session.commit()
+            
+            return {
+                "message": "Message added to existing conversation",
+                "conversation_id": existing_conv.id
+            }, 200
+        
+        # Create new conversation
+        new_conversation = Conversation(
+            user_id=current_user_id,
+            agent_id=agent_id,
+            property_id=property_id,
+            last_message=initial_message
+        )
+        db.session.add(new_conversation)
+        db.session.flush()  # Get the new conversation ID
+        
+        # Create first message
+        new_message = Message(
+            conversation_id=new_conversation.id,
+            sender_id=current_user_id,
+            sender_type="user",
+            content=initial_message,
+            is_read=False
+        )
+        db.session.add(new_message)
+        db.session.commit()
+        
+        return {
+            "message": "Conversation started successfully",
+            "conversation_id": new_conversation.id
+        }, 201
+
+
+# ==================== SCHEDULE VISIT RESOURCES ====================
+
+class ScheduleVisitResource(Resource):
+    @user_required()
+    def post(self):
+        """Schedule a property visit"""
+        current_user_id = get_jwt_identity()
+        
+        data = request.get_json()
+        property_id = data.get('property_id')
+        date = data.get('date')
+        time = data.get('time')
+        message = data.get('message', '')
+        
+        if not property_id:
+            return {"message": "Property ID is required"}, 400
+        
+        if not date:
+            return {"message": "Date is required"}, 400
+        
+        if not time:
+            return {"message": "Time is required"}, 400
+        
+        # Check if property exists
+        property = Property.query.get(property_id)
+        if not property:
+            return {"message": "Property not found"}, 404
+        
+        # Combine date and time into a datetime
+        from datetime import datetime
+        try:
+            scheduled_datetime = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            return {"message": "Invalid date or time format"}, 400
+        
+        # Create the scheduled visit
+        new_view = View(
+            property_id=property_id,
+            user_id=current_user_id,
+            sheduled_time=scheduled_datetime,
+            status="pending"
+        )
+        db.session.add(new_view)
+        db.session.commit()
+        
+        return {
+            "message": "Visit scheduled successfully",
+            "visit": {
+                'id': new_view.id,
+                'property_id': property_id,
+                'scheduled_time': new_view.sheduled_time.strftime("%Y-%m-%d %H:%M"),
+                'status': new_view.status
+            }
+        }, 201
+
+
+class UserScheduledVisitsResource(Resource):
+    @user_required()
+    def get(self):
+        """Get all scheduled visits for the current user"""
+        current_user_id = get_jwt_identity()
+        
+        # Get optional limit parameter
+        limit = request.args.get('limit', type=int, default=0)
+        
+        # Get all scheduled visits (status = pending or completed) for this user
+        visits_query = View.query.filter(
+            View.user_id == current_user_id,
+            View.status.in_(['pending', 'completed'])
+        ).order_by(View.sheduled_time.asc())
+        
+        if limit > 0:
+            visits = visits_query.limit(limit).all()
+        else:
+            visits = visits_query.all()
+        
+        result = []
+        for visit in visits:
+            visit_dict = {
+                'id': visit.id,
+                'scheduled_time': visit.sheduled_time.strftime("%Y-%m-%d %H:%M") if visit.sheduled_time else None,
+                'status': visit.status,
+                'created_at': visit.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Get property info
+            property = Property.query.get(visit.property_id)
+            if property:
+                visit_dict['property'] = {
+                    'id': property.id,
+                    'title': property.title,
+                    'price': property.price,
+                    'currency': property.currency,
+                    'listing_type': property.listing_type
+                }
+                # Get primary image
+                primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                if primary_image:
+                    visit_dict['property']['image'] = primary_image.image_url
+                
+                # Get location
+                prop_location = PropertyLocation.query.filter_by(property_id=property.id).first()
+                if prop_location:
+                    location = Location.query.get(prop_location.location_id)
+                    if location:
+                        visit_dict['property']['location'] = location.neighborhood or location.city
+            
+            result.append(visit_dict)
+        
+        return {"visits": result}, 200
             
 

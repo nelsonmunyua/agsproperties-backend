@@ -10,12 +10,15 @@ from resources.agent import AgentStatsResource, AgentPropertiesResource, AgentIn
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True) 
 
 # Initialized flask app
 app = Flask(__name__)
 
 # configure db URI
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///agsproperties.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 
 # Disable SQL echo to prevent logging loop
 app.config["SQLALCHEMY_ECHO"] = True
@@ -23,10 +26,25 @@ app.config["SQLALCHEMY_ECHO"] = True
 app.config["BUNDLE_ERRORS"] = True
 
 # Setup flask-JWT-extended extension
-app.config["JWT_SECRET_KEY"] = 'super-secret'
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 
 #flask cors
-CORS(app)
+allowed_origins = [
+    "http://localhost:5173",  # local dev
+    "https://agsproperties.vercel.app",  # your deployed frontend
+    "*"  # Allow all origins in development
+]
+
+CORS(
+    app,
+    resources={r"/*": {"origins": allowed_origins}},
+    supports_credentials=True,
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    expose_headers=["Content-Type", "Authorization"],
+    max_age=86400,
+    automatic_options=True  # Let Flask-CORS handle OPTIONS automatically
+)
 
 # link migration
 migrate = Migrate(app, db)

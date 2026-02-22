@@ -1,8 +1,8 @@
-"""add agent_id to views table
+"""Initial postgres migration
 
-Revision ID: acef90d0c14f
+Revision ID: 3c915ab210cf
 Revises: 
-Create Date: 2026-02-21 15:13:09.384000
+Create Date: 2026-02-22 17:08:34.545890
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'acef90d0c14f'
+revision = '3c915ab210cf'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,14 +24,14 @@ def upgrade():
     sa.Column('address', sa.Text(), nullable=True),
     sa.Column('phone', sa.Text(), nullable=True),
     sa.Column('founded_year', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_agencies'))
     )
     op.create_table('amenities',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_amenities'))
     )
@@ -49,7 +49,7 @@ def upgrade():
     op.create_table('property_types',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_property_types'))
     )
@@ -60,9 +60,9 @@ def upgrade():
     sa.Column('phone', sa.Text(), nullable=False),
     sa.Column('email', sa.Text(), nullable=False),
     sa.Column('password', sa.Text(), nullable=False),
-    sa.Column('role', sa.Enum('admin', 'agent', 'user'), nullable=False),
+    sa.Column('role', sa.Enum('admin', 'agent', 'user', name='user_type'), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_users')),
     sa.UniqueConstraint('email', name=op.f('uq_users_email')),
@@ -73,10 +73,10 @@ def upgrade():
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('profile_picture', sa.String(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('last_login', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('last_login', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('login_ip', sa.Text(), nullable=True),
     sa.Column('permission', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_admin_profiles_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_admin_profiles'))
@@ -88,7 +88,7 @@ def upgrade():
     sa.Column('agency_id', sa.Integer(), nullable=True),
     sa.Column('bio', sa.Text(), nullable=True),
     sa.Column('rating', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agency_id'], ['agencies.id'], name=op.f('fk_agent_profiles_agency_id_agencies')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_agent_profiles_user_id_users')),
@@ -100,9 +100,9 @@ def upgrade():
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('title', sa.Text(), nullable=False),
     sa.Column('message', sa.Text(), nullable=False),
-    sa.Column('notification_type', sa.Enum('inquiry', 'viewing', 'property', 'system'), nullable=True),
+    sa.Column('notification_type', sa.Enum('inquiry', 'viewing', 'property', 'system', name='notification_type'), nullable=True),
     sa.Column('is_read', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_notifications_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_notifications'))
@@ -111,7 +111,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('profile_picture', sa.String(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_user_profiles_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_user_profiles'))
@@ -121,8 +121,8 @@ def upgrade():
     sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('amount', sa.Integer(), nullable=True),
     sa.Column('payment_method', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('pending', 'complete'), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('status', sa.Enum('pending', 'complete', name='payment_status'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_payments_agent_id_agent_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_payments'))
@@ -140,10 +140,10 @@ def upgrade():
     sa.Column('area_size', sa.Integer(), nullable=True),
     sa.Column('area_unit', sa.Text(), nullable=True),
     sa.Column('listing_type', sa.Text(), nullable=False),
-    sa.Column('status', sa.Enum('onsale', 'onrent', 'lease'), nullable=False),
+    sa.Column('status', sa.Enum('onsale', 'onrent', 'lease', name='property_status'), nullable=False),
     sa.Column('year_built', sa.DateTime(), nullable=True),
     sa.Column('listing_date', sa.DateTime(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_properties_agent_id_agent_profiles')),
     sa.ForeignKeyConstraint(['property_type_id'], ['property_types.id'], name=op.f('fk_properties_property_type_id_property_types')),
@@ -154,7 +154,7 @@ def upgrade():
     sa.Column('agent_id', sa.Integer(), nullable=True),
     sa.Column('plan', sa.Text(), nullable=True),
     sa.Column('expires_at', sa.DateTime(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_subscriptions_agent_id_agent_profiles')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_subscriptions'))
@@ -165,8 +165,8 @@ def upgrade():
     sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=True),
     sa.Column('last_message', sa.Text(), nullable=True),
-    sa.Column('last_message_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('last_message_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_conversations_agent_id_agent_profiles')),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_conversations_property_id_properties')),
@@ -177,7 +177,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_favorites_property_id_properties')),
     sa.ForeignKeyConstraint(['user_id'], ['user_profiles.id'], name=op.f('fk_favorites_user_id_user_profiles')),
@@ -189,9 +189,9 @@ def upgrade():
     sa.Column('agent_id', sa.Integer(), nullable=False),
     sa.Column('property_id', sa.Integer(), nullable=False),
     sa.Column('message', sa.Text(), nullable=False),
-    sa.Column('status', sa.Enum('new', 'replied', 'closed'), nullable=False),
+    sa.Column('status', sa.Enum('new', 'replied', 'closed', name='inquiry_status'), nullable=False),
     sa.Column('reply', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_inquiries_agent_id_agent_profiles')),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_inquiries_property_id_properties')),
@@ -212,7 +212,7 @@ def upgrade():
     sa.Column('image_url', sa.Text(), nullable=True),
     sa.Column('caption', sa.Text(), nullable=True),
     sa.Column('is_primary', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_property_images_property_id_properties')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_property_images'))
@@ -229,7 +229,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('propert_id', sa.Integer(), nullable=False),
     sa.Column('video_url', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['propert_id'], ['properties.id'], name=op.f('fk_property_videos_propert_id_properties')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_property_videos'))
@@ -241,7 +241,7 @@ def upgrade():
     sa.Column('property_id', sa.Integer(), nullable=True),
     sa.Column('rating', sa.Integer(), nullable=False),
     sa.Column('comment', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agent_id'], ['agent_profiles.id'], name=op.f('fk_reviews_agent_id_agent_profiles')),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_reviews_property_id_properties')),
@@ -255,7 +255,7 @@ def upgrade():
     sa.Column('sale_price', sa.Text(), nullable=True),
     sa.Column('closing_date', sa.DateTime(), nullable=True),
     sa.Column('transaction_type', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_transactions_property_id_properties')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_transactions_user_id_users')),
@@ -266,8 +266,8 @@ def upgrade():
     sa.Column('property_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('sheduled_time', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.Enum('completed', 'canceled', 'pending', 'viewed'), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('status', sa.Enum('completed', 'canceled', 'pending', 'viewed', name='view_status'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['property_id'], ['properties.id'], name=op.f('fk_views_property_id_properties')),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_views_user_id_users')),
@@ -277,10 +277,10 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('conversation_id', sa.Integer(), nullable=False),
     sa.Column('sender_id', sa.Integer(), nullable=False),
-    sa.Column('sender_type', sa.Enum('user', 'agent'), nullable=False),
+    sa.Column('sender_type', sa.Enum('user', 'agent', name='sender_type'), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
     sa.Column('is_read', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['conversation_id'], ['conversations.id'], name=op.f('fk_messages_conversation_id_conversations')),
     sa.ForeignKeyConstraint(['sender_id'], ['users.id'], name=op.f('fk_messages_sender_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_messages'))

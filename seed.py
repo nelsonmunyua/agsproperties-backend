@@ -63,7 +63,7 @@ def seed_data():
 
         print("🧑‍💼 Creating profiles...")
         admin_profile = AdminProfile(
-            admin_id=admin.id,
+            user_id=admin.id,
             is_active=True,
             permission="full_access",
         )
@@ -78,7 +78,7 @@ def seed_data():
         db.session.commit()
 
         agent_profile = AgentProfile(
-            agent_id=agent_user.id,
+            user_id=agent_user.id,
             license_number="LIC-001",
             agency_id=agency.id,
             bio="Experienced real estate agent",

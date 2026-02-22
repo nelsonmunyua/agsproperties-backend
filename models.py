@@ -42,7 +42,7 @@ class AdminProfile(db.Model, SerializerMixin):
     __tablename__ = "admin_profiles"  
 
     id = db.Column(db.Integer(), primary_key=True)
-    admin_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
     profile_picture = db.Column(db.String())
     is_active = db.Column(db.Boolean(), default=False, nullable=False)
     last_login = db.Column(db.DateTime(), server_default=db.func.now())
@@ -56,7 +56,7 @@ class AgentProfile(db.Model, SerializerMixin):
     __tablename__ = "agent_profiles"
 
     id = db.Column(db.Integer(), primary_key=True)
-    agent_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
+    user_id = db.Column(db.Integer(), db.ForeignKey("users.id"), nullable=False)
     license_number = db.Column(db.Text(), nullable=False, unique=True)
     agency_id = db.Column(db.Integer(), db.ForeignKey("agencies.id"))
     bio = db.Column(db.Text(), nullable=True)

@@ -158,7 +158,7 @@ class UserPropertyDetailResource(Resource):
         # Get agent info
         agent_profile = AgentProfile.query.get(prop.agent_id)
         if agent_profile:
-            agent_user = User.query.get(agent_profile.agent_id)
+            agent_user = User.query.get(agent_profile.user_id)
             if agent_user:
                 prop_dict['agent'] = {
                     'id': agent_user.id,

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_migrate import Migrate
 from models import db, User
 from flask_restful import Api, Resource
@@ -6,8 +6,10 @@ from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
 from resources.user import UserProfileResource, UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
+from resources.agent import AgentStatsResource, AgentPropertiesResource, AgentInquiriesResource, AgentPropertyDetailResource, AgentPropertyCreateResource, AgentPropertyUpdateResource, AgentPropertyDeleteResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+import os
 
 # Initialized flask app
 app = Flask(__name__)
@@ -15,6 +17,7 @@ app = Flask(__name__)
 # configure db URI
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///agsproperties.db"
 
+# Disable SQL echo to prevent logging loop
 app.config["SQLALCHEMY_ECHO"] = True
 
 app.config["BUNDLE_ERRORS"] = True
@@ -39,6 +42,15 @@ bcrypt = Bcrypt(app)
 
 # initialize jwt
 jwt = JWTManager(app)
+
+# Create uploads folder if it doesn't exist
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Route to serve uploaded files
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # Register a callback function that loads a user from your database whenever
 # a protected route is accessed. This should return any python object on a
@@ -95,6 +107,16 @@ api.add_resource(ConversationMessagesResource, '/user/conversations/<int:convers
 # Visit scheduling routes
 api.add_resource(ScheduleVisitResource, '/user/schedule-visit')
 api.add_resource(UserScheduledVisitsResource, '/user/scheduled-visits')
+
+# agents routes
+api.add_resource(AgentStatsResource, '/agent/stats')
+api.add_resource(AgentPropertiesResource, '/agent/properties')
+api.add_resource(AgentPropertyDetailResource, '/agent/properties/<int:property_id>')
+api.add_resource(AgentPropertyCreateResource, '/agent/properties/create')
+api.add_resource(AgentPropertyUpdateResource, '/agent/properties/<int:property_id>/edit')
+api.add_resource(AgentPropertyDeleteResource, '/agent/properties/<int:property_id>/delete')
+api.add_resource(AgentInquiriesResource, '/agent/inquiries')
+
 
 
 if __name__ == '__main__':

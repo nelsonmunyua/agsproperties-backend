@@ -1,8 +1,8 @@
-"""add conversations table
+"""add agent_id to views table
 
-Revision ID: 0f7caa853269
+Revision ID: acef90d0c14f
 Revises: 
-Create Date: 2026-02-20 14:03:24.215593
+Create Date: 2026-02-21 15:13:09.384000
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0f7caa853269'
+revision = 'acef90d0c14f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -70,7 +70,7 @@ def upgrade():
     )
     op.create_table('admin_profiles',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('admin_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('profile_picture', sa.String(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('last_login', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
@@ -78,12 +78,12 @@ def upgrade():
     sa.Column('permission', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['admin_id'], ['users.id'], name=op.f('fk_admin_profiles_admin_id_users')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_admin_profiles_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_admin_profiles'))
     )
     op.create_table('agent_profiles',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('agent_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('license_number', sa.Text(), nullable=False),
     sa.Column('agency_id', sa.Integer(), nullable=True),
     sa.Column('bio', sa.Text(), nullable=True),
@@ -91,7 +91,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['agency_id'], ['agencies.id'], name=op.f('fk_agent_profiles_agency_id_agencies')),
-    sa.ForeignKeyConstraint(['agent_id'], ['users.id'], name=op.f('fk_agent_profiles_agent_id_users')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_agent_profiles_user_id_users')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_agent_profiles')),
     sa.UniqueConstraint('license_number', name=op.f('uq_agent_profiles_license_number'))
     )

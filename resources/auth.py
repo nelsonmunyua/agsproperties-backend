@@ -62,25 +62,26 @@ class Login(Resource):
     parser.add_argument('password', required=True, help="Password is required")
 
     def post(self):
-        data = Login.parser.parse_args()
+        try:
+            data = Login.parser.parse_args()
 
-        # Get user using email
-        user = User.query.filter_by(email = data['email']).first()
+            # Get user using email
+            user = User.query.filter_by(email = data['email']).first()
 
-        if user:
-        # Check if password provided is correct
-               is_password_correct = user.check_password(data['password'])
+            if not user:
+                return {"message" : "Invalid email/password", "status" : "fail"}, 403
 
-               if is_password_correct:
-                   
-                   user_json = user.to_json()
-                   access_token = create_access_token(identity=user_json['id'], additional_claims={'role':user_json['role']})
-                   
-         # Generate a token and return user dict
-                   return {"message" : "Login successful", "status" : "success", "user":user.to_dict(rules=("-password",)), "access_token":access_token}, 200
-               else:
-                   return {"message" : "Invalid email/passwprd", "status": "fail"}, 403
+            # Check if password provided is correct
+            is_password_correct = user.check_password(data['password'])
 
-        else:
-            return {"message" : "Invalid email/password", "status" : "fail"}, 403  
+            if is_password_correct:
+                user_json = user.to_json()
+                access_token = create_access_token(identity=user_json['id'], additional_claims={'role':user_json['role']})
+                
+                return {"message" : "Login successful", "status" : "success", "user":user.to_dict(rules=("-password",)), "access_token":access_token}, 200
+            else:
+                return {"message" : "Invalid email/password", "status": "fail"}, 403
+
+        except Exception as e:
+            return {"message" : "Login failed. Please try again.", "error": str(e)}, 500
 

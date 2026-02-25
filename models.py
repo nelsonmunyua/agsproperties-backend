@@ -34,6 +34,9 @@ class User(db.Model, SerializerMixin):
 
     def check_password(self, plain_password):
         """Verify password - handles both bcrypt hashes and plain text (legacy)"""
+        if not self.password or not plain_password:
+            return False
+            
         # Ensure both are strings for comparison
         stored_password = self.password
         if isinstance(stored_password, bytes):
@@ -42,10 +45,13 @@ class User(db.Model, SerializerMixin):
         try:
             # First try bcrypt hash
             return check_password_hash(stored_password, plain_password)
-        except ValueError:
+        except (ValueError, TypeError):
             # If bcrypt fails (invalid salt), try plain text comparison
             # This handles legacy data or improperly hashed passwords
             return stored_password == plain_password
+        except Exception:
+            # Catch any other unexpected errors
+            return False
     
     def to_json(self):
         return {'id':self.id, 'role':self.role}

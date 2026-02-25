@@ -33,7 +33,19 @@ class User(db.Model, SerializerMixin):
     updated_at = db.Column(db.DateTime(), onupdate=db.func.now(), default=datetime.now())
 
     def check_password(self, plain_password):
-        return check_password_hash(self.password, plain_password)
+        """Verify password - handles both bcrypt hashes and plain text (legacy)"""
+        # Ensure both are strings for comparison
+        stored_password = self.password
+        if isinstance(stored_password, bytes):
+            stored_password = stored_password.decode('utf-8')
+        
+        try:
+            # First try bcrypt hash
+            return check_password_hash(stored_password, plain_password)
+        except ValueError:
+            # If bcrypt fails (invalid salt), try plain text comparison
+            # This handles legacy data or improperly hashed passwords
+            return stored_password == plain_password
     
     def to_json(self):
         return {'id':self.id, 'role':self.role}

@@ -1,6 +1,6 @@
 from flask_restful import Resource, reqparse
 from flask_bcrypt import check_password_hash, generate_password_hash
-from models import User, Property, Payment, PropertyImage, PropertyLocation, Location, db
+from models import User, Property, Payment, PropertyImage, PropertyLocation, Location, UserProfile, db
 from flask_jwt_extended import  create_access_token, jwt_required  
 from flask_jwt_extended import current_user 
 from utils import admin_required                                                  
@@ -18,7 +18,7 @@ class Signup(Resource):
     def post(self):
         data = Signup.parser.parse_args()
           # hash password
-        data['password'] = generate_password_hash(data['password'])
+        data['password'] = generate_password_hash(data['password']).decode('utf-8')
         # data['role'] = 'user'
 
         user = User(**data)
@@ -37,6 +37,12 @@ class Signup(Resource):
         try:
             # save user to the db
             db.session.add(user)
+            db.session.flush()  # Get the user ID before creating profile
+
+            # Create user profile automatically
+            user_profile = UserProfile(user_id=user.id)
+            db.session.add(user_profile)
+            
             db.session.commit()
 
             user_json = user.to_dict()

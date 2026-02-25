@@ -1,7 +1,6 @@
 from functools import wraps
-from flask_jwt_extended import verify_jwt_in_request
-from flask_jwt_extended import get_jwt
-from flask import Flask
+from flask_jwt_extended import verify_jwt_in_request, get_jwt
+from flask import jsonify
 
 
 # Here is a custom decorator that verifies the JWT is present in the request,
@@ -11,15 +10,18 @@ def admin_required():
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
-            verify_jwt_in_request()
-            claims = get_jwt()
+            try:
+                verify_jwt_in_request()
+                claims = get_jwt()
 
-            if claims is None:
-                return {"message":"Unauthorized request"}, 403
-            if claims["role"] == "admin":
-                return fn(*args, **kwargs)
-            else:
-                return {"message":"Unauthorized request"}, 403
+                if claims is None:
+                    return {"message": "Unauthorized request"}, 403
+                if claims.get("role") == "admin":
+                    return fn(*args, **kwargs)
+                else:
+                    return {"message": "Unauthorized request - Admin access required"}, 403
+            except Exception as e:
+                return {"message": "Invalid or missing token", "error": str(e)}, 401
 
         return decorator
 
@@ -29,15 +31,18 @@ def agent_required():
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
-            verify_jwt_in_request()
-            claims = get_jwt()
+            try:
+                verify_jwt_in_request()
+                claims = get_jwt()
 
-            if claims is None:
-                return {"Message":"Unauthorized request"}, 403
-            if claims["role"] == "agent":
-                return fn(*args, **kwargs)
-            else:
-                return {"Message": "Unauthorized request"}, 403
+                if claims is None:
+                    return {"message": "Unauthorized request"}, 403
+                if claims.get("role") == "agent":
+                    return fn(*args, **kwargs)
+                else:
+                    return {"message": "Unauthorized request - Agent access required"}, 403
+            except Exception as e:
+                return {"message": "Invalid or missing token", "error": str(e)}, 401
         return decorator    
     return wrapper
 
@@ -45,14 +50,17 @@ def user_required():
     def wrapper(fn):
         @wraps(fn)
         def decorator(*args, **kwargs):
-            verify_jwt_in_request()
-            claims = get_jwt()
+            try:
+                verify_jwt_in_request()
+                claims = get_jwt()
 
-            if claims is None:
-                return {"Message":"Unauthorized request"}, 403
-            if claims["role"] == "user":
-                return fn(*args, **kwargs)
-            else:
-                return {"Message": "Unauthorized request"}, 403
+                if claims is None:
+                    return {"message": "Unauthorized request"}, 403
+                if claims.get("role") == "user":
+                    return fn(*args, **kwargs)
+                else:
+                    return {"message": "Unauthorized request - User access required"}, 403
+            except Exception as e:
+                return {"message": "Invalid or missing token", "error": str(e)}, 401
         return decorator    
     return wrapper

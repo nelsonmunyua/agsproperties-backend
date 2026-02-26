@@ -31,13 +31,13 @@ app.config["SQLALCHEMY_ECHO"] = True
 app.config["BUNDLE_ERRORS"] = True
 
 # Setup flask-JWT-extended extension
-# Use environment variable or fallback to a default (for development only)
+# Use environment variable or fallback to a fixed default (for development only)
 jwt_secret = os.getenv("JWT_SECRET_KEY")
 if not jwt_secret:
     # WARNING: This is only for development. In production, always set JWT_SECRET_KEY env var
-    import secrets
-    jwt_secret = secrets.token_hex(32)
-    print("WARNING: Using generated JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
+    # Using a static key so tokens remain valid across restarts
+    jwt_secret = "ags-properties-dev-secret-key-do-not-use-in-production"
+    print("WARNING: Using default JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
 
 app.config["JWT_SECRET_KEY"] = jwt_secret
 

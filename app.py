@@ -18,7 +18,12 @@ load_dotenv(override=True)
 app = Flask(__name__)
 
 # configure db URI
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    # Fallback for local development
+    database_url = "sqlite:///agsproperties.db"
+    
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 
 # Disable SQL echo to prevent logging loop
 app.config["SQLALCHEMY_ECHO"] = True
@@ -26,7 +31,15 @@ app.config["SQLALCHEMY_ECHO"] = True
 app.config["BUNDLE_ERRORS"] = True
 
 # Setup flask-JWT-extended extension
-app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+# Use environment variable or fallback to a default (for development only)
+jwt_secret = os.getenv("JWT_SECRET_KEY")
+if not jwt_secret:
+    # WARNING: This is only for development. In production, always set JWT_SECRET_KEY env var
+    import secrets
+    jwt_secret = secrets.token_hex(32)
+    print("WARNING: Using generated JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
+
+app.config["JWT_SECRET_KEY"] = jwt_secret
 
 #flask cors
 allowed_origins = [

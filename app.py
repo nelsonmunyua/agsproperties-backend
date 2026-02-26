@@ -3,7 +3,7 @@ from flask_migrate import Migrate
 from models import db, User
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
-from resources.auth import Signup, Login
+from resources.auth import Signup, Login, Logout
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
 from resources.user import UserProfileResource, UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
 from resources.agent import AgentStatsResource, AgentPropertiesResource, AgentInquiriesResource, AgentPropertyDetailResource, AgentPropertyCreateResource, AgentPropertyUpdateResource, AgentPropertyDeleteResource
@@ -108,6 +108,7 @@ def index():
 # Routes
 api.add_resource(Signup, '/signup')
 api.add_resource(Login, '/login')
+api.add_resource(Logout, '/logout')
 api.add_resource(UsersResource, '/users')
 api.add_resource(AdminStatsResource, '/admin/stats')
 api.add_resource(PendingAgentAproval, '/admin/pending-approvals')

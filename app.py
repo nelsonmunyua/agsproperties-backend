@@ -6,7 +6,7 @@ from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login, Logout
 from resources.admin import UsersResource, AdminStatsResource, PendingAgentAproval, RecentUsers, PropertyResource, AgentApproval
 from resources.user import UserProfileResource, UserStatsResource, SavedPropertiesResource, RecentActivitiesResource, UserPropertiesResource, UserPropertyDetailResource, ToggleFavoriteResource, RecordPropertyViewResource, CreateInquiryResource, UserInquiriesResource, UserConversationsResource, ConversationMessagesResource, StartConversationResource, ScheduleVisitResource, UserScheduledVisitsResource
-from resources.agent import AgentStatsResource, AgentPropertiesResource, AgentInquiriesResource, AgentPropertyDetailResource, AgentPropertyCreateResource, AgentPropertyUpdateResource, AgentPropertyDeleteResource
+from resources.agent import AgentStatsResource, AgentPropertiesResource, AgentInquiriesResource, AgentPropertyDetailResource, AgentPropertyCreateResource, AgentPropertyUpdateResource, AgentPropertyDeleteResource, AgentConversationsResource, AgentConversationMessagesResource
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import os
@@ -148,6 +148,10 @@ api.add_resource(AgentPropertyCreateResource, '/agent/properties/create')
 api.add_resource(AgentPropertyUpdateResource, '/agent/properties/<int:property_id>/edit')
 api.add_resource(AgentPropertyDeleteResource, '/agent/properties/<int:property_id>/delete')
 api.add_resource(AgentInquiriesResource, '/agent/inquiries')
+
+# Agent messaging routes
+api.add_resource(AgentConversationsResource, '/agent/conversations')
+api.add_resource(AgentConversationMessagesResource, '/agent/conversations/<int:conversation_id>')
 
 
 

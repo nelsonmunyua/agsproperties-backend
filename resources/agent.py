@@ -497,3 +497,170 @@ class AgentPropertyDeleteResource(Resource):
         
         return {"message": "Property deleted successfully"}, 200
 
+
+# ==================== AGENT MESSAGING RESOURCES ====================
+
+class AgentConversationsResource(Resource):
+    @agent_required()
+    def get(self):
+        """Get all conversations for the current agent"""
+        current_user_id = get_jwt_identity()
+        agent_profile = AgentProfile.query.filter_by(user_id=current_user_id).first()
+        
+        if not agent_profile:
+            return {"conversations": []}, 200
+        
+        # Get all conversations for this agent, ordered by most recent
+        conversations = Conversation.query.filter_by(
+            agent_id=agent_profile.id
+        ).order_by(Conversation.last_message_at.desc()).all()
+        
+        result = []
+        for conv in conversations:
+            conv_dict = {
+                'id': conv.id,
+                'last_message': conv.last_message,
+                'last_message_at': conv.last_message_at.strftime("%Y-%m-%d %H:%M") if conv.last_message_at else None,
+                'created_at': conv.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Get user info
+            user = User.query.get(conv.user_id)
+            if user:
+                conv_dict['user'] = {
+                    'id': user.id,
+                    'name': f"{user.first_name} {user.last_name}",
+                    'email': user.email,
+                    'phone': user.phone
+                }
+            
+            # Get property info if exists
+            if conv.property_id:
+                property = Property.query.get(conv.property_id)
+                if property:
+                    conv_dict['property'] = {
+                        'id': property.id,
+                        'title': property.title,
+                        'price': property.price,
+                        'currency': property.currency
+                    }
+                    # Get primary image
+                    primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                    if primary_image:
+                        conv_dict['property']['image'] = primary_image.image_url
+            
+            # Get unread message count
+            unread_count = Message.query.filter(
+                Message.conversation_id == conv.id,
+                Message.sender_type == "user",
+                Message.is_read == False
+            ).count()
+            conv_dict['unread_count'] = unread_count
+            
+            result.append(conv_dict)
+        
+        return {"conversations": result}, 200
+
+
+class AgentConversationMessagesResource(Resource):
+    @agent_required()
+    def get(self, conversation_id):
+        """Get all messages in a conversation"""
+        current_user_id = get_jwt_identity()
+        agent_profile = AgentProfile.query.filter_by(user_id=current_user_id).first()
+        
+        if not agent_profile:
+            return {"message": "Agent profile not found"}, 404
+        
+        # Verify the conversation belongs to this agent
+        conversation = Conversation.query.filter_by(
+            id=conversation_id,
+            agent_id=agent_profile.id
+        ).first()
+        
+        if not conversation:
+            return {"message": "Conversation not found"}, 404
+        
+        # Get all messages in this conversation
+        messages = Message.query.filter_by(
+            conversation_id=conversation_id
+        ).order_by(Message.created_at.asc()).all()
+        
+        # Mark messages as read
+        for msg in messages:
+            if msg.sender_type == "user" and not msg.is_read:
+                msg.is_read = True
+        db.session.commit()
+        
+        result = []
+        for msg in messages:
+            msg_dict = {
+                'id': msg.id,
+                'content': msg.content,
+                'sender_type': msg.sender_type,
+                'is_read': msg.is_read,
+                'created_at': msg.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Get sender info
+            sender = User.query.get(msg.sender_id)
+            if sender:
+                msg_dict['sender'] = {
+                    'id': sender.id,
+                    'name': f"{sender.first_name} {sender.last_name}"
+                }
+            
+            result.append(msg_dict)
+        
+        return {"messages": result}, 200
+    
+    @agent_required()
+    def post(self, conversation_id):
+        """Send a message in a conversation"""
+        current_user_id = get_jwt_identity()
+        agent_profile = AgentProfile.query.filter_by(user_id=current_user_id).first()
+        
+        if not agent_profile:
+            return {"message": "Agent profile not found"}, 404
+        
+        # Verify the conversation belongs to this agent
+        conversation = Conversation.query.filter_by(
+            id=conversation_id,
+            agent_id=agent_profile.id
+        ).first()
+        
+        if not conversation:
+            return {"message": "Conversation not found"}, 404
+        
+        data = request.get_json()
+        content = data.get('content')
+        
+        if not content:
+            return {"message": "Message content is required"}, 400
+        
+        # Create the message
+        new_message = Message(
+            conversation_id=conversation_id,
+            sender_id=current_user_id,
+            sender_type="agent",
+            content=content,
+            is_read=False
+        )
+        db.session.add(new_message)
+        
+        # Update conversation's last message
+        conversation.last_message = content
+        conversation.last_message_at = datetime.now()
+        
+        db.session.commit()
+        
+        return {
+            "message": "Message sent successfully",
+            "msg": {
+                'id': new_message.id,
+                'content': new_message.content,
+                'sender_type': new_message.sender_type,
+                'created_at': new_message.created_at.strftime("%Y-%m-%d %H:%M")
+            }
+        }, 201
+

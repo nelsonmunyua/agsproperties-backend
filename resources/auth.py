@@ -1,3 +1,4 @@
+
 from flask_restful import Resource, reqparse
 from flask_bcrypt import check_password_hash, generate_password_hash
 from models import User, Property, Payment, PropertyImage, PropertyLocation, Location, UserProfile, db
@@ -56,9 +57,7 @@ class Signup(Resource):
         except:
             return {"message": "Unable to create account", "status": "fail"}, 400
 
-class Login(Resource):
-    parser = reqparse.RequestParser()
-    parser.add_argument('email', required=True, help="Email is required")
+
 class Login(Resource):
     parser = reqparse.RequestParser()
     parser.add_argument('email', required=True, help="Email is required")
@@ -87,4 +86,11 @@ class Login(Resource):
 
         except Exception as e:
             return {"message" : "Login failed. Please try again.", "error": str(e)}, 500
+
+
+class Logout(Resource):
+    def post(self):
+        # JWT tokens are stateless - just return success
+        # Frontend should clear the token from localStorage
+        return {"message": "Logout successful", "status": "success"}, 200
 

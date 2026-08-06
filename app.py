@@ -56,8 +56,8 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 #flask cors
 allowed_origins = [
     "http://localhost:5173",  # local dev
-    #"https://agsproperties.vercel.app",  # your deployed frontend
-    "*"  # Allow all origins in development
+    "https://agsproperties.vercel.app",  # your deployed frontend
+    #"*"  # Allow all origins in development
 ]
 
 CORS(

@@ -1,6 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_migrate import Migrate
 from models import db, User
+from shared.error_handlers import register_error_handlers
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
 from resources.auth import Signup, Login, Logout
@@ -11,40 +12,51 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+from modules.property.routes import (register_property_routes)
+from modules.user.routes import(register_user_routes)
+from auth.routes import register_auth_routes
+from config import Config
+from flask_mail import Mail
 
 load_dotenv(override=True) 
 
 # Initialized flask app
 app = Flask(__name__)
 
-# configure db URI
-database_url = os.getenv("DATABASE_URL")
-if not database_url:
-    # Fallback for local development
-    database_url = "sqlite:///agsproperties.db"
-    
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config.from_object(Config)
 
-# Disable SQL echo to prevent logging loop
-app.config["SQLALCHEMY_ECHO"] = True
+# # configure db URI
+# database_url = os.getenv("DATABASE_URL")
+
+    
+# app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+
+# # Disable SQL echo to prevent logging loop
+# #app.config["SQLALCHEMY_ECHO"] = True
+
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 app.config["BUNDLE_ERRORS"] = True
 
-# Setup flask-JWT-extended extension
-# Use environment variable or fallback to a fixed default (for development only)
-jwt_secret = os.getenv("JWT_SECRET_KEY")
-if not jwt_secret:
-    # WARNING: This is only for development. In production, always set JWT_SECRET_KEY env var
-    # Using a static key so tokens remain valid across restarts
-    jwt_secret = "ags-properties-dev-secret-key-do-not-use-in-production"
-    print("WARNING: Using default JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
+app.config['PROPAGATE_EXCEPTIONS'] = True  
 
-app.config["JWT_SECRET_KEY"] = jwt_secret
+
+# # Setup flask-JWT-extended extension
+# # Use environment variable or fallback to a fixed default (for development only)
+# jwt_secret = os.getenv("JWT_SECRET_KEY")
+# if not jwt_secret:
+#     # WARNING: This is only for development. In production, always set JWT_SECRET_KEY env var
+#     # Using a static key so tokens remain valid across restarts
+#     jwt_secret = "ags-properties-dev-secret-key-do-not-use-in-production"
+#     print("WARNING: Using default JWT_SECRET_KEY. Set JWT_SECRET_KEY env var for production!")
+
+# app.config["JWT_SECRET_KEY"] = jwt_secret
 
 #flask cors
 allowed_origins = [
     "http://localhost:5173",  # local dev
-    "https://agsproperties.vercel.app",  # your deployed frontend
+    #"https://agsproperties.vercel.app",  # your deployed frontend
     "*"  # Allow all origins in development
 ]
 
@@ -73,6 +85,12 @@ bcrypt = Bcrypt(app)
 
 # initialize jwt
 jwt = JWTManager(app)
+
+mail = Mail(app)
+
+# initialize error handler
+register_error_handlers(app)
+
 
 # Create uploads folder if it doesn't exist
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -106,23 +124,23 @@ def index():
 
 
 # Routes
-api.add_resource(Signup, '/signup')
-api.add_resource(Login, '/login')
-api.add_resource(Logout, '/logout')
+# properties endpoint 
+register_property_routes(api)
+register_auth_routes(api)
+register_user_routes(api)
+
+
 api.add_resource(UsersResource, '/users')
 api.add_resource(AdminStatsResource, '/admin/stats')
 api.add_resource(PendingAgentAproval, '/admin/pending-approvals')
 api.add_resource(AgentApproval, '/admin/approve/<int:user_id>')
 api.add_resource(RecentUsers, '/admin/recent-users')
 
-api.add_resource(PropertyResource, '/properties')
 
 # user routes
 api.add_resource(UserProfileResource, '/user/profile')
 api.add_resource(UserStatsResource, '/user/stats')
-api.add_resource(SavedPropertiesResource, '/user/saved-properties')
 api.add_resource(RecentActivitiesResource, '/user/recent-activity')
-api.add_resource(UserPropertiesResource, '/user/properties')
 api.add_resource(UserPropertyDetailResource, '/user/properties/<int:property_id>')
 api.add_resource(ToggleFavoriteResource, '/user/favorite')
 api.add_resource(RecordPropertyViewResource, '/user/record-view')

@@ -1,5 +1,5 @@
 from flask import request
-from models import db, User, Property, Favorite, UserProfile, Inquiry, View, PropertyImage, PropertyLocation, Location, Property_type, AgentProfile, PropertyVideo, Conversation, Message
+from models import db, User, Property, Favorite, UserProfile, Inquiry, View, PropertyImage, PropertyLocation, Location, PropertyType, AgentProfile, PropertyVideo, Conversation, Message
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import get_jwt_identity
 from utils import user_required
@@ -105,7 +105,7 @@ class UserPropertiesResource(Resource):
                     prop_dict['location'] = location.neighborhood or location.city or f"{location.city}, {location.state}"
             
             # Get property type name for category filtering
-            property_type = Property_type.query.get(prop.property_type_id)
+            property_type = PropertyType.query.get(prop.property_type_id)
             if property_type:
                 prop_dict['property_type'] = property_type.name
             
@@ -133,7 +133,7 @@ class UserPropertyDetailResource(Resource):
         prop_dict['images'] = [img.image_url for img in all_images]
         
         # Get all videos
-        all_videos = PropertyVideo.query.filter_by(propert_id=prop.id).all()
+        all_videos = PropertyVideo.query.filter_by(property_id=prop.id).all()
         prop_dict['videos'] = [video.video_url for video in all_videos]
         
         # Get location details
@@ -151,7 +151,7 @@ class UserPropertyDetailResource(Resource):
                 }
         
         # Get property type
-        property_type = Property_type.query.get(prop.property_type_id)
+        property_type = PropertyType.query.get(prop.property_type_id)
         if property_type:
             prop_dict['property_type'] = property_type.name
         
@@ -473,7 +473,7 @@ class UserInquiriesResource(Resource):
             # Get agent info
             agent_profile = AgentProfile.query.get(inquiry.agent_id)
             if agent_profile:
-                agent_user = User.query.get(agent_profile.agent_id)
+                agent_user = User.query.get(agent_profile.user_id)
                 if agent_user:
                     inquiry_dict['agent'] = {
                         'id': agent_user.id,
@@ -512,7 +512,7 @@ class UserConversationsResource(Resource):
             # Get agent info
             agent_profile = AgentProfile.query.get(conv.agent_id)
             if agent_profile:
-                agent_user = User.query.get(agent_profile.agent_id)
+                agent_user = User.query.get(agent_profile.user_id)
                 if agent_user:
                     conv_dict['agent'] = {
                         'id': agent_user.id,
@@ -661,10 +661,19 @@ class StartConversationResource(Resource):
         if not initial_message:
             return {"message": "Initial message is required"}, 400
         
+        # The frontend sends the agent's User id. Resolve it to the actual
+        # AgentProfile id so it matches agent_profiles.id (the FK of
+        # Conversation.agent_id) and aligns with how AgentConversationsResource
+        # queries by agent_profile.id.
+        agent_profile = AgentProfile.query.filter_by(user_id=agent_id).first()
+        if not agent_profile:
+            return {"message": "Agent not found"}, 404
+        resolved_agent_id = agent_profile.id
+        
         # Check if conversation already exists
         existing_conv = Conversation.query.filter_by(
             user_id=current_user_id,
-            agent_id=agent_id,
+            agent_id=resolved_agent_id,
             property_id=property_id
         ).first()
         
@@ -690,7 +699,7 @@ class StartConversationResource(Resource):
         # Create new conversation
         new_conversation = Conversation(
             user_id=current_user_id,
-            agent_id=agent_id,
+            agent_id=resolved_agent_id,
             property_id=property_id,
             last_message=initial_message
         )

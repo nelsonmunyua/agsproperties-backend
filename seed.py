@@ -6,7 +6,7 @@ from models import (
     AgentProfile,
     UserProfile,
     Agency,
-    Property_type,
+    PropertyType,
     Property,
     Location,
     PropertyLocation,
@@ -92,13 +92,13 @@ def seed_data():
 
         print("🏠 Creating property types...")
         property_types = [
-            Property_type(name="Apartment"),
-            Property_type(name="Villa"),
-            Property_type(name="Bungalow"),
-            Property_type(name="Mansion"),
-            Property_type(name="House"),
-            Property_type(name="Maisonette"),
-            Property_type(name="Commercial"),
+            PropertyType(name="Apartment"),
+            PropertyType(name="Villa"),
+            PropertyType(name="Bungalow"),
+            PropertyType(name="Mansion"),
+            PropertyType(name="House"),
+            PropertyType(name="Maisonette"),
+            PropertyType(name="Commercial"),
         ]
         
         db.session.add_all(property_types)

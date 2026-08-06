@@ -1,5 +1,5 @@
 from flask import request, send_from_directory
-from models import db, AgentProfile, Property, Inquiry, View, Payment, PropertyImage, PropertyVideo, User, Property_type, Location, PropertyLocation
+from models import db, AgentProfile, Property, Inquiry, View, Payment, PropertyImage, PropertyVideo, User, PropertyType, Location, PropertyLocation, Conversation, Message
 from flask_restful import Resource
 from flask_jwt_extended import get_jwt_identity
 from utils import agent_required
@@ -184,7 +184,7 @@ class AgentPropertyDetailResource(Resource):
                 unique_images.append(img)
         
         # Get videos (note: model has 'propert_id' typo)
-        videos = PropertyVideo.query.filter_by(propert_id=property.id).all()
+        videos = PropertyVideo.query.filter_by(property_id=property.id).all()
         
         # Deduplicate videos
         seen_video_urls = set()
@@ -198,7 +198,7 @@ class AgentPropertyDetailResource(Resource):
         view_count = View.query.filter_by(property_id=property.id).count()
         
         # Get property type
-        property_type = Property_type.query.get(property.property_type_id)
+        property_type = PropertyType.query.get(property.property_type_id)
         
         # Get location
         prop_location = PropertyLocation.query.filter_by(property_id=property.id).first()
@@ -315,9 +315,11 @@ class AgentPropertyCreateResource(Resource):
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
                 image.save(filepath)
                 image_url = f"/uploads/{filename}"
-                
-                is_primary = request.form.get(f'is_primary_{i}', 'false').lower() == 'true' if i == 0 else False
-                
+
+                # The first image is always the primary image. The frontend
+                # does not send an `is_primary_0` field, so don't rely on it.
+                is_primary = (i == 0)
+
                 prop_image = PropertyImage(
                     property_id=property.id,
                     image_url=image_url,
@@ -337,7 +339,7 @@ class AgentPropertyCreateResource(Resource):
                 video_url = f"/uploads/{filename}"
                 
                 prop_video = PropertyVideo(
-                    propert_id=property.id,
+                    property_id=property.id,
                     video_url=video_url
                 )
                 db.session.add(prop_video)
@@ -445,7 +447,7 @@ class AgentPropertyUpdateResource(Resource):
                 video_url = f"/uploads/{filename}"
                 
                 prop_video = PropertyVideo(
-                    propert_id=property.id,
+                    property_id=property.id,
                     video_url=video_url
                 )
                 db.session.add(prop_video)
@@ -456,7 +458,7 @@ class AgentPropertyUpdateResource(Resource):
             import json
             kept_videos = json.loads(existing_videos)
             PropertyVideo.query.filter(
-                PropertyVideo.propert_id == property.id,
+                PropertyVideo.property_id == property.id,
                 ~PropertyVideo.id.in_(kept_videos)
             ).delete(synchronize_session=False)
         
@@ -486,7 +488,7 @@ class AgentPropertyDeleteResource(Resource):
         
         # Delete related records first
         PropertyImage.query.filter_by(property_id=property.id).delete(synchronize_session=False)
-        PropertyVideo.query.filter_by(propert_id=property.id).delete(synchronize_session=False)
+        PropertyVideo.query.filter_by(property_id=property.id).delete(synchronize_session=False)
         PropertyLocation.query.filter_by(property_id=property.id).delete(synchronize_session=False)
         View.query.filter_by(property_id=property.id).delete(synchronize_session=False)
         Inquiry.query.filter_by(property_id=property.id).delete(synchronize_session=False)

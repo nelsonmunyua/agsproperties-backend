@@ -1,6 +1,6 @@
 from flask import request
 from flask_restful import Resource, reqparse
-from models import db, User, Property, Payment, PropertyImage, PropertyLocation, Location, Property_type, AgentProfile, PropertyAmenity, Amenity
+from models import db, User, Property, Payment, PropertyImage, PropertyLocation, Location, PropertyType, AgentProfile, PropertyAmenity, Amenity
 from utils import admin_required
 
 from flask import request
@@ -55,7 +55,7 @@ class AgentApproval(Resource):
         # Get the agent(user)
         agent = User.query.get(user_id)
         if not agent:
-            return {"message":"Agent does not found"}, 404
+            return {"message":"Agent not found"}, 404
         # Get new status from the frontend
         data = request.get_json()
 

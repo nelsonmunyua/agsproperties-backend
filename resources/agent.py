@@ -12,6 +12,15 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
+def _absolute_url(path):
+    """Convert a stored (possibly relative) media URL to an absolute URL."""
+    if not path:
+        return None
+    if path.startswith(("http://", "https://", "//")):
+        return path
+    return f"{request.host_url.rstrip('/')}{path}"
+
+
 class AgentStatsResource(Resource):
     @agent_required()
     def get(self):
@@ -79,11 +88,16 @@ class AgentPropertiesResource(Resource):
         
         properties_data = []
         for prop in properties:
-            # Get primary image
+            # Get primary image (fall back to first image for legacy data
+            # where no image is marked primary)
             primary_image = PropertyImage.query.filter_by(
-                property_id=prop.id, 
+                property_id=prop.id,
                 is_primary=True
             ).first()
+            if not primary_image:
+                primary_image = PropertyImage.query.filter_by(
+                    property_id=prop.id
+                ).order_by(PropertyImage.id.asc()).first()
             
             # Count views for this property
             view_count = View.query.filter_by(property_id=prop.id).count()
@@ -98,7 +112,7 @@ class AgentPropertiesResource(Resource):
                 "bedrooms": prop.bedrooms,
                 "bathrooms": prop.bathrooms,
                 "views": view_count,
-                "image": primary_image.image_url if primary_image else None,
+                "image": _absolute_url(primary_image.image_url) if primary_image else None,
                 "created_at": prop.created_at.isoformat() if prop.created_at else None
             })
         
@@ -226,8 +240,8 @@ class AgentPropertyDetailResource(Resource):
                 "views": view_count,
                 "created_at": property.created_at.isoformat() if property.created_at else None,
             },
-            "images": [{"id": img.id, "url": img.image_url, "is_primary": img.is_primary} for img in unique_images],
-            "videos": [{"id": vid.id, "url": vid.video_url} for vid in unique_videos],
+            "images": [{"id": img.id, "url": _absolute_url(img.image_url), "is_primary": img.is_primary} for img in unique_images],
+            "videos": [{"id": vid.id, "url": _absolute_url(vid.video_url)} for vid in unique_videos],
             "location": {
                 "id": location.id if location else None,
                 "country": location.country if location else None,
@@ -461,7 +475,20 @@ class AgentPropertyUpdateResource(Resource):
                 PropertyVideo.property_id == property.id,
                 ~PropertyVideo.id.in_(kept_videos)
             ).delete(synchronize_session=False)
-        
+
+        # Safety guard: ensure the property has a primary image. If none is
+        # marked primary (e.g. legacy properties created before primary images
+        # were enforced), promote the first image.
+        has_primary = PropertyImage.query.filter_by(
+            property_id=property.id, is_primary=True
+        ).first()
+        if not has_primary:
+            first_image = PropertyImage.query.filter_by(
+                property_id=property.id
+            ).order_by(PropertyImage.id.asc()).first()
+            if first_image:
+                first_image.is_primary = True
+
         db.session.commit()
         
         return {
@@ -546,10 +573,12 @@ class AgentConversationsResource(Resource):
                         'price': property.price,
                         'currency': property.currency
                     }
-                    # Get primary image
+                    # Get primary image (fall back to first image for legacy data)
                     primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                    if not primary_image:
+                        primary_image = PropertyImage.query.filter_by(property_id=property.id).order_by(PropertyImage.id.asc()).first()
                     if primary_image:
-                        conv_dict['property']['image'] = primary_image.image_url
+                        conv_dict['property']['image'] = _absolute_url(primary_image.image_url)
             
             # Get unread message count
             unread_count = Message.query.filter(

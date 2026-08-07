@@ -6,6 +6,27 @@ from utils import user_required
 from datetime import datetime
 
 
+def _absolute_url(path):
+    """Convert a stored (possibly relative) media URL to an absolute URL."""
+    if not path:
+        return None
+    if path.startswith(("http://", "https://", "//")):
+        return path
+    return f"{request.host_url.rstrip('/')}{path}"
+
+
+def _primary_image(property_id):
+    """Return the primary image, falling back to the first image for legacy data."""
+    image = PropertyImage.query.filter_by(
+        property_id=property_id, is_primary=True
+    ).first()
+    if not image:
+        image = PropertyImage.query.filter_by(
+            property_id=property_id
+        ).order_by(PropertyImage.id.asc()).first()
+    return image
+
+
 class UserProfileResource(Resource):
     @user_required()
     def get(self):
@@ -93,9 +114,9 @@ class UserPropertiesResource(Resource):
         for prop in properties:
             prop_dict = prop.to_dict()
             
-            # Get primary image
-            primary_image = PropertyImage.query.filter_by(property_id=prop.id, is_primary=True).first()
-            prop_dict['primary_image'] = primary_image.image_url if primary_image else None
+            # Get primary image (fall back to first image for legacy data)
+            primary_image = _primary_image(prop.id)
+            prop_dict['primary_image'] = _absolute_url(primary_image.image_url) if primary_image else None
             
             # Get location
             prop_location = PropertyLocation.query.filter_by(property_id=prop.id).first()
@@ -124,17 +145,17 @@ class UserPropertyDetailResource(Resource):
         
         prop_dict = prop.to_dict()
         
-        # Get primary image
-        primary_image = PropertyImage.query.filter_by(property_id=prop.id, is_primary=True).first()
-        prop_dict['primary_image'] = primary_image.image_url if primary_image else None
+        # Get primary image (fall back to first image for legacy data)
+        primary_image = _primary_image(prop.id)
+        prop_dict['primary_image'] = _absolute_url(primary_image.image_url) if primary_image else None
         
         # Get all images
         all_images = PropertyImage.query.filter_by(property_id=prop.id).all()
-        prop_dict['images'] = [img.image_url for img in all_images]
+        prop_dict['images'] = [_absolute_url(img.image_url) for img in all_images]
         
         # Get all videos
         all_videos = PropertyVideo.query.filter_by(property_id=prop.id).all()
-        prop_dict['videos'] = [video.video_url for video in all_videos]
+        prop_dict['videos'] = [_absolute_url(video.video_url) for video in all_videos]
         
         # Get location details
         prop_location = PropertyLocation.query.filter_by(property_id=prop.id).first()
@@ -465,10 +486,10 @@ class UserInquiriesResource(Resource):
                     'price': property.price,
                     'currency': property.currency
                 }
-                # Get primary image
-                primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                # Get primary image (fall back to first image for legacy data)
+                primary_image = _primary_image(property.id)
                 if primary_image:
-                    inquiry_dict['property']['image'] = primary_image.image_url
+                    inquiry_dict['property']['image'] = _absolute_url(primary_image.image_url)
             
             # Get agent info
             agent_profile = AgentProfile.query.get(inquiry.agent_id)
@@ -531,10 +552,10 @@ class UserConversationsResource(Resource):
                         'price': property.price,
                         'currency': property.currency
                     }
-                    # Get primary image
-                    primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                    # Get primary image (fall back to first image for legacy data)
+                    primary_image = _primary_image(property.id)
                     if primary_image:
-                        conv_dict['property']['image'] = primary_image.image_url
+                        conv_dict['property']['image'] = _absolute_url(primary_image.image_url)
             
             # Get unread message count
             unread_count = Message.query.filter(
@@ -818,10 +839,10 @@ class UserScheduledVisitsResource(Resource):
                     'currency': property.currency,
                     'listing_type': property.listing_type
                 }
-                # Get primary image
-                primary_image = PropertyImage.query.filter_by(property_id=property.id, is_primary=True).first()
+                # Get primary image (fall back to first image for legacy data)
+                primary_image = _primary_image(property.id)
                 if primary_image:
-                    visit_dict['property']['image'] = primary_image.image_url
+                    visit_dict['property']['image'] = _absolute_url(primary_image.image_url)
                 
                 # Get location
                 prop_location = PropertyLocation.query.filter_by(property_id=property.id).first()

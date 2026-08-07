@@ -17,7 +17,7 @@ class PropertyImageService:
 
             image_url = StorageService.save(
                 image,
-                folder=StorageFolders.PROFILE_IMAGES
+                folder=StorageFolders.PROPERTY_IMAGES
             )
 
             db.session.add(

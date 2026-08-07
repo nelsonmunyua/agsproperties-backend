@@ -1,4 +1,14 @@
+from flask import request
 from models import Property
+
+
+def _absolute_url(path):
+    """Convert a stored (possibly relative) media URL to an absolute URL."""
+    if not path:
+        return None
+    if path.startswith(("http://", "https://", "//")):
+        return path
+    return f"{request.host_url.rstrip('/')}{path}"
 
 
 class PropertySerializer:
@@ -10,7 +20,7 @@ class PropertySerializer:
     def image(image):
         return {
             "id": image.id,
-            "url": image.image_url,
+            "url": _absolute_url(image.image_url),
             "caption": image.caption,
             "is_primary": image.is_primary,
         }
@@ -19,7 +29,7 @@ class PropertySerializer:
     def video(video):
         return {
             "id": video.id,
-            "url": video.video_url,
+            "url": _absolute_url(video.video_url),
         }
 
     @staticmethod
@@ -110,16 +120,22 @@ class PropertySerializer:
 
             "created_at": property.created_at.isoformat() if property.created_at else None,
 
-            "primary_image":
-
+            "primary_image": _absolute_url(
                 next(
                     (
                         image.image_url
                         for image in property.images
                         if image.is_primary
                     ),
-                    None,
-                ),
+                    next(
+                        (
+                            image.image_url
+                            for image in property.images
+                        ),
+                        None,
+                    ),
+                )
+            ),
 
             "property_type":
                 PropertySerializer.property_type(

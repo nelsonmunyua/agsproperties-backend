@@ -9,6 +9,27 @@ from models import db, User, Property, Payment, PropertyImage, PropertyLocation,
 from utils import admin_required
 
 
+def _absolute_url(path):
+    """Convert a stored (possibly relative) media URL to an absolute URL."""
+    if not path:
+        return None
+    if path.startswith(("http://", "https://", "//")):
+        return path
+    return f"{request.host_url.rstrip('/')}{path}"
+
+
+def _primary_image(property_id):
+    """Return the primary image, falling back to the first image for legacy data."""
+    image = PropertyImage.query.filter_by(
+        property_id=property_id, is_primary=True
+    ).first()
+    if not image:
+        image = PropertyImage.query.filter_by(
+            property_id=property_id
+        ).order_by(PropertyImage.id.asc()).first()
+    return image
+
+
 class UsersResource(Resource):
     @admin_required()
     def get(self):
@@ -96,11 +117,11 @@ class PropertyResource(Resource):
         result = []
         for property in properties:
             prop_dict = property.to_dict()
-            # Get the primary image for this property
-            primary_image = PropertyImage.query.filter_by(property_id = property.id, is_primary=True).first()
+            # Get the primary image (fall back to first image for legacy data)
+            primary_image = _primary_image(property.id)
 
             # Add image URL to the property dict
-            prop_dict['image'] = primary_image.image_url if primary_image else None
+            prop_dict['image'] = _absolute_url(primary_image.image_url) if primary_image else None
 
             # Add location
             prop_location = PropertyLocation.query.filter_by(property_id = property.id).first()
